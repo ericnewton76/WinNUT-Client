@@ -31,9 +31,9 @@ public class AppSettings
 
 public class ConnectionSettings
 {
-	public string ServerAddress { get; set; } = "localhost";
+	public string ServerAddress { get; set; } = "proxmox01.local";
 	public int Port { get; set; } = 3493;
-	public string UpsName { get; set; } = "ups";
+	public string UpsName { get; set; } = "apc1500";
 	public int PollingIntervalSeconds { get; set; } = 5;
 	public string? Login { get; set; }
 

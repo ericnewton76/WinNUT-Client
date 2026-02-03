@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WinNUT_Client.Services;
@@ -9,6 +10,8 @@ namespace WinNUT_Client.ViewModels;
 public partial class MainWindowViewModel : ViewModelBase
 {
 	private readonly UpsNetworkService _upsNetwork;
+	private readonly System.Timers.Timer _freshnessTimer;
+	private DateTime _lastUpdateTime;
 
 	[ObservableProperty]
 	private string _connectionStatus = "Not Connected";
@@ -52,9 +55,20 @@ public partial class MainWindowViewModel : ViewModelBase
 	[ObservableProperty]
 	private int _retryCount;
 
+	[ObservableProperty]
+	private IBrush _dataFreshnessColor = Brushes.Gray;
+
+	[ObservableProperty]
+	private string _dataFreshnessTooltip = "No data";
+
 	public MainWindowViewModel()
 	{
 		_upsNetwork = App.UpsNetwork;
+
+		// Timer to update freshness indicator
+		_freshnessTimer = new System.Timers.Timer(1000);
+		_freshnessTimer.Elapsed += (_, _) => UpdateFreshnessIndicator();
+		_freshnessTimer.AutoReset = true;
 
 		// Subscribe to UPS events
 		_upsNetwork.Connected += OnUpsConnected;
@@ -158,6 +172,7 @@ public partial class MainWindowViewModel : ViewModelBase
 		IsConnected = true;
 		ConnectionStatus = $"Connected to {_upsNetwork.Host}:{_upsNetwork.Port}";
 		RetryCount = 0;
+		_freshnessTimer.Start();
 
 		App.Notifications?.NotifyConnected(_upsNetwork.Host, _upsNetwork.Port);
 	}
@@ -166,6 +181,9 @@ public partial class MainWindowViewModel : ViewModelBase
 	{
 		IsConnected = false;
 		ConnectionStatus = "Disconnected";
+		_freshnessTimer.Stop();
+		DataFreshnessColor = Brushes.Gray;
+		DataFreshnessTooltip = "Not connected";
 		ClearUpsData();
 	}
 
@@ -173,6 +191,8 @@ public partial class MainWindowViewModel : ViewModelBase
 	{
 		IsConnected = false;
 		ConnectionStatus = "Connection lost - reconnecting...";
+		DataFreshnessColor = Brushes.Red;
+		DataFreshnessTooltip = "Connection lost";
 
 		App.Notifications?.NotifyDisconnected();
 	}
@@ -192,6 +212,34 @@ public partial class MainWindowViewModel : ViewModelBase
 		InputFrequency = data.InputFrequency;
 		Load = data.Load;
 		OutputPower = data.OutputPower;
+
+		_lastUpdateTime = DateTime.Now;
+		UpdateFreshnessIndicator();
+	}
+
+	private void UpdateFreshnessIndicator()
+	{
+		if (!IsConnected)
+			return;
+
+		var age = DateTime.Now - _lastUpdateTime;
+		var pollingInterval = _upsNetwork.PollingIntervalMs / 1000.0;
+
+		// Green: within 2x polling interval, Yellow: within 4x, Red: stale
+		if (age.TotalSeconds < pollingInterval * 2)
+		{
+			DataFreshnessColor = Brushes.LimeGreen;
+		}
+		else if (age.TotalSeconds < pollingInterval * 4)
+		{
+			DataFreshnessColor = Brushes.Gold;
+		}
+		else
+		{
+			DataFreshnessColor = Brushes.OrangeRed;
+		}
+
+		DataFreshnessTooltip = $"Last updated: {_lastUpdateTime:HH:mm:ss} ({age.TotalSeconds:F0}s ago)";
 	}
 
 	private void OnUpsRetryAttempt(object? sender, EventArgs e)

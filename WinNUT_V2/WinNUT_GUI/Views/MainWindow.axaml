@@ -44,9 +44,12 @@
 
 		<!-- Status Bar at bottom -->
 		<Border DockPanel.Dock="Bottom" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}" Padding="5">
-			<Grid ColumnDefinitions="*,Auto">
-				<TextBlock Grid.Column="0" Text="{Binding ConnectionStatus}" />
-				<TextBlock Grid.Column="1" Text="{Binding UpsStatus}" FontWeight="Bold" Margin="10,0,0,0" />
+			<Grid ColumnDefinitions="Auto,*,Auto">
+				<!-- Freshness indicator -->
+				<Ellipse Grid.Column="0" Width="12" Height="12" Fill="{Binding DataFreshnessColor}" 
+								 Margin="0,0,8,0" ToolTip.Tip="{Binding DataFreshnessTooltip}" />
+				<TextBlock Grid.Column="1" Text="{Binding ConnectionStatus}" VerticalAlignment="Center" />
+				<TextBlock Grid.Column="2" Text="{Binding UpsStatus}" FontWeight="Bold" Margin="10,0,0,0" VerticalAlignment="Center" />
 			</Grid>
 		</Border>
 
