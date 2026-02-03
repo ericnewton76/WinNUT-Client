@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WinNUT_Client.Services;
@@ -169,30 +170,39 @@ public partial class MainWindowViewModel : ViewModelBase
 
 	private void OnUpsConnected(object? sender, EventArgs e)
 	{
-		IsConnected = true;
-		ConnectionStatus = $"Connected to {_upsNetwork.Host}:{_upsNetwork.Port}";
-		RetryCount = 0;
-		_freshnessTimer.Start();
+		Dispatcher.UIThread.Post(() =>
+		{
+			IsConnected = true;
+			ConnectionStatus = $"Connected to {_upsNetwork.Host}:{_upsNetwork.Port}";
+			RetryCount = 0;
+			_freshnessTimer.Start();
+		});
 
 		App.Notifications?.NotifyConnected(_upsNetwork.Host, _upsNetwork.Port);
 	}
 
 	private void OnUpsDisconnected(object? sender, EventArgs e)
 	{
-		IsConnected = false;
-		ConnectionStatus = "Disconnected";
-		_freshnessTimer.Stop();
-		DataFreshnessColor = Brushes.Gray;
-		DataFreshnessTooltip = "Not connected";
-		ClearUpsData();
+		Dispatcher.UIThread.Post(() =>
+		{
+			IsConnected = false;
+			ConnectionStatus = "Disconnected";
+			_freshnessTimer.Stop();
+			DataFreshnessColor = Brushes.Gray;
+			DataFreshnessTooltip = "Not connected";
+			ClearUpsData();
+		});
 	}
 
 	private void OnUpsConnectionLost(object? sender, EventArgs e)
 	{
-		IsConnected = false;
-		ConnectionStatus = "Connection lost - reconnecting...";
-		DataFreshnessColor = Brushes.Red;
-		DataFreshnessTooltip = "Connection lost";
+		Dispatcher.UIThread.Post(() =>
+		{
+			IsConnected = false;
+			ConnectionStatus = "Connection lost - reconnecting...";
+			DataFreshnessColor = Brushes.Red;
+			DataFreshnessTooltip = "Connection lost";
+		});
 
 		App.Notifications?.NotifyDisconnected();
 	}
@@ -201,20 +211,23 @@ public partial class MainWindowViewModel : ViewModelBase
 	{
 		var data = _upsNetwork.CurrentData;
 
-		UpsManufacturer = data.Manufacturer;
-		UpsModel = data.Model;
-		UpsStatus = data.Status;
-		BatteryCharge = data.BatteryCharge;
-		BatteryVoltage = data.BatteryVoltage;
-		BatteryRuntimeMinutes = data.BatteryRuntimeSeconds / 60.0;
-		InputVoltage = data.InputVoltage;
-		OutputVoltage = data.OutputVoltage;
-		InputFrequency = data.InputFrequency;
-		Load = data.Load;
-		OutputPower = data.OutputPower;
+		Dispatcher.UIThread.Post(() =>
+		{
+			UpsManufacturer = data.Manufacturer;
+			UpsModel = data.Model;
+			UpsStatus = data.Status;
+			BatteryCharge = data.BatteryCharge;
+			BatteryVoltage = data.BatteryVoltage;
+			BatteryRuntimeMinutes = data.BatteryRuntimeSeconds / 60.0;
+			InputVoltage = data.InputVoltage;
+			OutputVoltage = data.OutputVoltage;
+			InputFrequency = data.InputFrequency;
+			Load = data.Load;
+			OutputPower = data.OutputPower;
 
-		_lastUpdateTime = DateTime.Now;
-		UpdateFreshnessIndicator();
+			_lastUpdateTime = DateTime.Now;
+			UpdateFreshnessIndicator();
+		});
 	}
 
 	private void UpdateFreshnessIndicator()
@@ -244,8 +257,11 @@ public partial class MainWindowViewModel : ViewModelBase
 
 	private void OnUpsRetryAttempt(object? sender, EventArgs e)
 	{
-		RetryCount = _upsNetwork.RetryCount;
-		ConnectionStatus = $"Reconnecting... ({RetryCount}/{_upsNetwork.MaxRetries})";
+		Dispatcher.UIThread.Post(() =>
+		{
+			RetryCount = _upsNetwork.RetryCount;
+			ConnectionStatus = $"Reconnecting... ({RetryCount}/{_upsNetwork.MaxRetries})";
+		});
 	}
 
 	private void OnUpsShutdownCondition(object? sender, EventArgs e)

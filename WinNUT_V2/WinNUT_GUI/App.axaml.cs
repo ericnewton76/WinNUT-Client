@@ -146,17 +146,17 @@ public partial class App : Application
 
 	private void OnUpsConnectedForTray(object? sender, EventArgs e)
 	{
-		UpdateTrayStatus();
+		Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTrayStatus);
 	}
 
 	private void OnUpsDisconnectedForTray(object? sender, EventArgs e)
 	{
-		UpdateTrayStatus();
+		Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTrayStatus);
 	}
 
 	private void OnUpsDataUpdatedForTray(object? sender, EventArgs e)
 	{
-		UpdateTrayStatus();
+		Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTrayStatus);
 	}
 
 	private void UpdateTrayStatus()
