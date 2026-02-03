@@ -46,6 +46,37 @@ public partial class UpsDeviceViewModel : ObservableObject
 	[ObservableProperty]
 	private bool _isPrimary;
 
+	/// <summary>
+	/// Combined Host:Port for editing. Port defaults to 3493 if not specified.
+	/// </summary>
+	public string HostPort
+	{
+		get => Port == 3493 ? Host : $"{Host}:{Port}";
+		set
+		{
+			if (string.IsNullOrWhiteSpace(value))
+			{
+				Host = string.Empty;
+				Port = 3493;
+				return;
+			}
+
+			var lastColon = value.LastIndexOf(':');
+			if (lastColon > 0 && int.TryParse(value[(lastColon + 1)..], out var port))
+			{
+				Host = value[..lastColon];
+				Port = port;
+			}
+			else
+			{
+				Host = value;
+				Port = 3493;
+			}
+			OnPropertyChanged(nameof(HostPort));
+			OnPropertyChanged(nameof(HostDisplay));
+		}
+	}
+
 	public string HostDisplay => $"{Host}:{Port}/{UpsName}";
 }
 
