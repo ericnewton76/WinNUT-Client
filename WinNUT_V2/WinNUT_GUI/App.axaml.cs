@@ -67,10 +67,27 @@ public partial class App : Application
 			// Avoid duplicate validations from both Avalonia and the CommunityToolkit.
 			DisableAvaloniaDataAnnotationValidation();
 
-			desktop.MainWindow = new MainWindow
+			var mainWindow = new MainWindow
 			{
 				DataContext = new MainWindowViewModel(),
 			};
+			desktop.MainWindow = mainWindow;
+
+			// Start minimized if configured
+			if (Settings.Settings.Appearance.MinimizeOnStart)
+			{
+				if (Settings.Settings.Appearance.MinimizeToTray)
+				{
+					// Don't show window at all, just tray icon
+					mainWindow.ShowInTaskbar = false;
+					mainWindow.WindowState = WindowState.Minimized;
+					mainWindow.Hide();
+				}
+				else
+				{
+					mainWindow.WindowState = WindowState.Minimized;
+				}
+			}
 
 			desktop.ShutdownRequested += OnShutdownRequested;
 
@@ -157,6 +174,7 @@ public partial class App : Application
 			var window = desktop.MainWindow;
 			if (window != null)
 			{
+				window.ShowInTaskbar = true;
 				window.Show();
 				window.WindowState = WindowState.Normal;
 				window.Activate();
