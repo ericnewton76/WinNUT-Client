@@ -132,7 +132,7 @@ public partial class PreferencesViewModel : ViewModelBase
 		MinimizeToTray = settings.Appearance.MinimizeToTray;
 		MinimizeOnStart = settings.Appearance.MinimizeOnStart;
 		CloseToTray = settings.Appearance.CloseToTray;
-		StartWithWindows = settings.Appearance.StartWithWindows;
+		StartWithWindows = IsStartupEnabled();
 
 		// Logging
 		EnableFileLogging = settings.Logging.EnableFileLogging;
@@ -215,8 +215,59 @@ public partial class PreferencesViewModel : ViewModelBase
 		LoggingService.SetLogLevel(settings.Logging.LogLevel);
 		LoggingService.SetFileLoggingEnabled(settings.Logging.EnableFileLogging);
 
+		// Update Windows startup
+		UpdateWindowsStartup(StartWithWindows);
+
 		DialogResult = true;
 		CloseRequested?.Invoke(this, EventArgs.Empty);
+	}
+
+	private static void UpdateWindowsStartup(bool enable)
+	{
+		if (!OperatingSystem.IsWindows())
+			return;
+
+		try
+		{
+			const string keyName = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+			const string valueName = "WinNUT-Client";
+
+			using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(keyName, writable: true);
+			if (key == null) return;
+
+			if (enable)
+			{
+				var exePath = Environment.ProcessPath ?? System.Reflection.Assembly.GetExecutingAssembly().Location;
+				key.SetValue(valueName, $"\"{exePath}\"");
+			}
+			else
+			{
+				key.DeleteValue(valueName, throwOnMissingValue: false);
+			}
+		}
+		catch (Exception ex)
+		{
+			LoggingService.Error($"Failed to update Windows startup: {ex.Message}");
+		}
+	}
+
+	private static bool IsStartupEnabled()
+	{
+		if (!OperatingSystem.IsWindows())
+			return false;
+
+		try
+		{
+			const string keyName = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+			const string valueName = "WinNUT-Client";
+
+			using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(keyName);
+			return key?.GetValue(valueName) != null;
+		}
+		catch
+		{
+			return false;
+		}
 	}
 
 	[RelayCommand]
