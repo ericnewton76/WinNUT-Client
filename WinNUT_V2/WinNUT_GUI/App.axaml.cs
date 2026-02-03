@@ -5,6 +5,7 @@ using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using System.Linq;
 using Avalonia.Markup.Xaml;
+using NLog;
 using WinNUT_Client.Services;
 using WinNUT_Client.ViewModels;
 using WinNUT_Client.Views;
@@ -13,6 +14,8 @@ namespace WinNUT_Client;
 
 public partial class App : Application
 {
+	private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+
 	public static SettingsService Settings { get; private set; } = null!;
 	public static UpsNetworkService UpsNetwork { get; private set; } = null!;
 	public static NotificationService? Notifications { get; private set; }
@@ -48,10 +51,9 @@ public partial class App : Application
 			Settings = configPath != null ? new SettingsService(configPath) : new SettingsService();
 			Settings.Load();
 
-			// Initialize logging
-			LoggingService.Initialize(
-				Settings.Settings.Logging.EnableFileLogging,
-				Settings.Settings.Logging.LogLevel);
+			// Apply settings to logging (NLog.config handles initialization)
+			LoggingSetup.SetFileLoggingEnabled(Settings.Settings.Logging.EnableFileLogging);
+			LoggingSetup.SetLogLevel(Settings.Settings.Logging.LogLevel);
 
 			// Initialize UPS network service
 			UpsNetwork = new UpsNetworkService();
@@ -123,7 +125,7 @@ public partial class App : Application
 		}
 		catch (Exception ex)
 		{
-			LoggingService.Error($"Auto-connect failed: {ex.Message}");
+			Log.Error($"Auto-connect failed: {ex.Message}");
 
 			if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop2 &&
 				desktop2.MainWindow?.DataContext is MainWindowViewModel vm2)
@@ -161,7 +163,7 @@ public partial class App : Application
 			}
 			catch (Exception ex)
 			{
-				LoggingService.Error($"Connection failed: {ex.Message}");
+				Log.Error($"Connection failed: {ex.Message}");
 
 				if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop2 &&
 					desktop2.MainWindow?.DataContext is MainWindowViewModel vm2)
@@ -282,7 +284,7 @@ public partial class App : Application
 	{
 		// Cleanup
 		UpsNetwork?.Dispose();
-		LoggingService.Shutdown();
+		LoggingSetup.Shutdown();
 	}
 
 	private void DisableAvaloniaDataAnnotationValidation()
@@ -301,8 +303,8 @@ public partial class App : Application
 	private void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
 	{
 		var exception = e.ExceptionObject as Exception;
-		LoggingService.Error($"Unhandled exception: {exception?.Message}");
-		LoggingService.Error(exception?.StackTrace ?? "No stack trace");
+		Log.Error($"Unhandled exception: {exception?.Message}");
+		Log.Error(exception?.StackTrace ?? "No stack trace");
 
 		// Try to save settings before crash
 		try
@@ -314,8 +316,8 @@ public partial class App : Application
 
 	private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
 	{
-		LoggingService.Error($"Unobserved task exception: {e.Exception.Message}");
-		LoggingService.Error(e.Exception.StackTrace ?? "No stack trace");
+		Log.Error($"Unobserved task exception: {e.Exception.Message}");
+		Log.Error(e.Exception.StackTrace ?? "No stack trace");
 		e.SetObserved(); // Prevent app crash
 	}
 }

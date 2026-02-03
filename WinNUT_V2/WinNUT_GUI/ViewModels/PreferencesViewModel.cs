@@ -1,11 +1,14 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NLog;
 using WinNUT_Client.Services;
 
 namespace WinNUT_Client.ViewModels;
 
 public partial class PreferencesViewModel : ViewModelBase
 {
+	private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+
 	// Connection settings
 	[ObservableProperty]
 	private string _serverAddress = string.Empty;
@@ -189,7 +192,7 @@ public partial class PreferencesViewModel : ViewModelBase
 
 		// Logging
 		settings.Logging.EnableFileLogging = EnableFileLogging;
-		settings.Logging.LogLevel = (LogLevel)LogLevelIndex;
+		settings.Logging.LogLevel = (Services.LogLevel)LogLevelIndex;
 
 		// Power
 		settings.Power.ShutdownLimitBatteryCharge = ShutdownBatteryLimit;
@@ -212,8 +215,8 @@ public partial class PreferencesViewModel : ViewModelBase
 		App.Settings.Save();
 
 		// Update logging
-		LoggingService.SetLogLevel(settings.Logging.LogLevel);
-		LoggingService.SetFileLoggingEnabled(settings.Logging.EnableFileLogging);
+		LoggingSetup.SetLogLevel(settings.Logging.LogLevel);
+		LoggingSetup.SetFileLoggingEnabled(settings.Logging.EnableFileLogging);
 
 		// Update Windows startup
 		UpdateWindowsStartup(StartWithWindows);
@@ -247,7 +250,7 @@ public partial class PreferencesViewModel : ViewModelBase
 		}
 		catch (Exception ex)
 		{
-			LoggingService.Error($"Failed to update Windows startup: {ex.Message}");
+			Log.Error($"Failed to update Windows startup: {ex.Message}");
 		}
 	}
 

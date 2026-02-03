@@ -8,6 +8,7 @@
 // This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY.
 
 using System.Text.Json;
+using NLog;
 
 namespace WinNUT_Client.Services;
 
@@ -16,6 +17,8 @@ namespace WinNUT_Client.Services;
 /// </summary>
 public class SettingsService
 {
+	private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+
 	private static readonly JsonSerializerOptions JsonOptions = new()
 	{
 		WriteIndented = true,
@@ -66,18 +69,18 @@ public class SettingsService
 			{
 				var json = await File.ReadAllTextAsync(_settingsFilePath);
 				_settings = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
-				LoggingService.Notice($"Settings loaded from {_settingsFilePath}");
+				Log.Info($"Settings loaded from {_settingsFilePath}");
 			}
 			else
 			{
 				_settings = new AppSettings();
 				await SaveAsync(); // Create default settings file
-				LoggingService.Notice($"Created default settings at {_settingsFilePath}");
+				Log.Info($"Created default settings at {_settingsFilePath}");
 			}
 		}
 		catch (Exception ex)
 		{
-			LoggingService.Error(ex, "Failed to load settings, using defaults");
+			Log.Error(ex, "Failed to load settings, using defaults");
 			_settings = new AppSettings();
 		}
 
@@ -104,7 +107,7 @@ public class SettingsService
 		}
 		catch (Exception ex)
 		{
-			LoggingService.Error(ex, "Failed to load settings, using defaults");
+			Log.Error(ex, "Failed to load settings, using defaults");
 			_settings = new AppSettings();
 		}
 
@@ -126,11 +129,11 @@ public class SettingsService
 
 			var json = JsonSerializer.Serialize(_settings, JsonOptions);
 			await File.WriteAllTextAsync(_settingsFilePath, json);
-			LoggingService.Debug($"Settings saved to {_settingsFilePath}");
+			Log.Debug($"Settings saved to {_settingsFilePath}");
 		}
 		catch (Exception ex)
 		{
-			LoggingService.Error(ex, "Failed to save settings");
+			Log.Error(ex, "Failed to save settings");
 			throw;
 		}
 	}
@@ -153,7 +156,7 @@ public class SettingsService
 		}
 		catch (Exception ex)
 		{
-			LoggingService.Error(ex, "Failed to save settings");
+			Log.Error(ex, "Failed to save settings");
 			throw;
 		}
 	}
@@ -171,12 +174,12 @@ public class SettingsService
 			MapIniToSettings(iniData);
 			await SaveAsync();
 
-			LoggingService.Notice($"Imported settings from legacy INI: {iniFilePath}");
+			Log.Info($"Imported settings from legacy INI: {iniFilePath}");
 			return true;
 		}
 		catch (Exception ex)
 		{
-			LoggingService.Error(ex, $"Failed to import INI file: {iniFilePath}");
+			Log.Error(ex, $"Failed to import INI file: {iniFilePath}");
 			return false;
 		}
 	}

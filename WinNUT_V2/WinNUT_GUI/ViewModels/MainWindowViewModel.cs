@@ -4,12 +4,15 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NLog;
 using WinNUT_Client.Services;
 
 namespace WinNUT_Client.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
+	private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+
 	private readonly UpsNetworkService _upsNetwork;
 	private readonly System.Timers.Timer _freshnessTimer;
 	private DateTime _lastUpdateTime;
@@ -155,7 +158,7 @@ public partial class MainWindowViewModel : ViewModelBase
 	[RelayCommand]
 	private void ViewLogFile()
 	{
-		var logPath = LoggingService.LogFilePath;
+		var logPath = LoggingSetup.LogFilePath;
 		if (!string.IsNullOrEmpty(logPath) && File.Exists(logPath))
 		{
 			Process.Start(new ProcessStartInfo(logPath) { UseShellExecute = true });
@@ -264,7 +267,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
 	private void OnUpsShutdownCondition(object? sender, EventArgs e)
 	{
-		LoggingService.Warning("Shutdown condition triggered");
+		Log.Warn("Shutdown condition triggered");
 
 		Dispatcher.UIThread.Post(async () =>
 		{
@@ -290,7 +293,7 @@ public partial class MainWindowViewModel : ViewModelBase
 				}
 				else
 				{
-					LoggingService.Notice("Shutdown cancelled by user");
+					Log.Info("Shutdown cancelled by user");
 				}
 			}
 		});
@@ -298,7 +301,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
 	private void PerformShutdown(ShutdownType shutdownType)
 	{
-		LoggingService.Warning($"Performing system {shutdownType}");
+		Log.Warn($"Performing system {shutdownType}");
 
 		App.Notifications?.SendToast("WinNUT-Client", $"System {shutdownType} initiated");
 
@@ -322,13 +325,13 @@ public partial class MainWindowViewModel : ViewModelBase
 		}
 		catch (Exception ex)
 		{
-			LoggingService.Error($"Failed to execute shutdown: {ex.Message}");
+			Log.Error($"Failed to execute shutdown: {ex.Message}");
 		}
 	}
 
 	private void OnUpsShutdownCancelled(object? sender, EventArgs e)
 	{
-		LoggingService.Notice("Shutdown cancelled - power restored");
+		Log.Info("Shutdown cancelled - power restored");
 	}
 
 	private void ClearUpsData()

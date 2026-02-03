@@ -8,13 +8,11 @@
 // This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY.
 
 using NLog;
-using NLog.Config;
-using NLog.Targets;
 
 namespace WinNUT_Client.Services;
 
 /// <summary>
-/// Log levels matching the original WinNUT implementation.
+/// Log levels for settings configuration.
 /// </summary>
 public enum LogLevel
 {
@@ -25,64 +23,20 @@ public enum LogLevel
 }
 
 /// <summary>
-/// Provides logging services using NLog.
-/// Logs to daily rotating files in the AppData folder.
+/// Helper for NLog operations. Configuration is via NLog.config file.
+/// Use NLog.LogManager.GetCurrentClassLogger() in each class for logging.
 /// </summary>
-public class LoggingService
+public static class LoggingSetup
 {
-	private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
-	private static string _logFilePath = string.Empty;
-
-	public static string LogFilePath => _logFilePath;
-
-	/// <summary>
-	/// Initializes NLog configuration programmatically.
-	/// </summary>
-	/// <param name="enableFileLogging">Whether to write logs to file.</param>
-	/// <param name="minLevel">Minimum log level to record.</param>
-	public static void Initialize(bool enableFileLogging, LogLevel minLevel)
+	public static string LogFilePath
 	{
-		var config = new LoggingConfiguration();
-
-		var logDirectory = Path.Combine(
-			Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-			"WinNUT-Client");
-
-		Directory.CreateDirectory(logDirectory);
-
-		_logFilePath = Path.Combine(logDirectory, "WinNUT-Client.log");
-
-		// File target with daily archiving
-		if (enableFileLogging)
+		get
 		{
-			var fileTarget = new FileTarget("file")
-			{
-				FileName = _logFilePath,
-				Layout = "${longdate} | ${level:uppercase=true:padding=-5} | ${logger} | ${message}${exception:format=tostring}",
-				ArchiveEvery = FileArchivePeriod.Day,
-				ArchiveFileName = Path.Combine(logDirectory, "WinNUT-Client.{#}.log"),
-				ArchiveNumbering = ArchiveNumberingMode.Date,
-				ArchiveDateFormat = "yyyy-MM-dd",
-				MaxArchiveFiles = 30,
-				ConcurrentWrites = true,
-				KeepFileOpen = false
-			};
-
-			config.AddTarget(fileTarget);
-			config.AddRule(MapLogLevel(minLevel), NLog.LogLevel.Fatal, fileTarget);
+			var logDirectory = Path.Combine(
+				Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+				"WinNUT-Client");
+			return Path.Combine(logDirectory, "WinNUT-Client.log");
 		}
-
-		// Debug console target (only in debug builds)
-#if DEBUG
-		var debugTarget = new DebuggerTarget("debugger")
-		{
-			Layout = "${longdate} | ${level:uppercase=true} | ${logger} | ${message}"
-		};
-		config.AddTarget(debugTarget);
-		config.AddRule(NLog.LogLevel.Trace, NLog.LogLevel.Fatal, debugTarget);
-#endif
-
-		LogManager.Configuration = config;
 	}
 
 	/// <summary>
@@ -90,9 +44,18 @@ public class LoggingService
 	/// </summary>
 	public static void SetLogLevel(LogLevel level)
 	{
+		var nlogLevel = level switch
+		{
+			LogLevel.Notice => NLog.LogLevel.Info,
+			LogLevel.Warning => NLog.LogLevel.Warn,
+			LogLevel.Error => NLog.LogLevel.Error,
+			LogLevel.Debug => NLog.LogLevel.Debug,
+			_ => NLog.LogLevel.Info
+		};
+
 		foreach (var rule in LogManager.Configuration.LoggingRules)
 		{
-			rule.SetLoggingLevels(MapLogLevel(level), NLog.LogLevel.Fatal);
+			rule.SetLoggingLevels(nlogLevel, NLog.LogLevel.Fatal);
 		}
 		LogManager.ReconfigExistingLoggers();
 	}
@@ -117,28 +80,6 @@ public class LoggingService
 			LogManager.ReconfigExistingLoggers();
 		}
 	}
-
-	private static NLog.LogLevel MapLogLevel(LogLevel level) => level switch
-	{
-		LogLevel.Notice => NLog.LogLevel.Info,
-		LogLevel.Warning => NLog.LogLevel.Warn,
-		LogLevel.Error => NLog.LogLevel.Error,
-		LogLevel.Debug => NLog.LogLevel.Debug,
-		_ => NLog.LogLevel.Info
-	};
-
-	// Convenience methods for logging
-	public static void Notice(string message) => Logger.Info(message);
-	public static void Warning(string message) => Logger.Warn(message);
-	public static void Error(string message) => Logger.Error(message);
-	public static void Error(Exception ex, string message) => Logger.Error(ex, message);
-	public static void Debug(string message) => Logger.Debug(message);
-
-	/// <summary>
-	/// Gets a logger for a specific type.
-	/// </summary>
-	public static Logger GetLogger<T>() => LogManager.GetLogger(typeof(T).Name);
-	public static Logger GetLogger(string name) => LogManager.GetLogger(name);
 
 	/// <summary>
 	/// Shuts down NLog and flushes any pending log entries.

@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using WinNUT_Client.Services;
+using NLog;
 
 namespace WinNUT_Client.ViewModels;
 
@@ -16,6 +16,8 @@ public partial class UpsVariableItem : ObservableObject
 
 public partial class UpsVariablesViewModel : ViewModelBase
 {
+	private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+
 	[ObservableProperty]
 	private ObservableCollection<UpsVariableItem> _variables = new();
 
@@ -58,7 +60,7 @@ public partial class UpsVariablesViewModel : ViewModelBase
 		catch (Exception ex)
 		{
 			StatusMessage = $"Error: {ex.Message}";
-			LoggingService.Error($"Failed to load UPS variables: {ex.Message}");
+			Log.Error($"Failed to load UPS variables: {ex.Message}");
 		}
 		finally
 		{
