@@ -5,11 +5,18 @@ namespace WinNUT_Client.Views;
 
 public partial class ShutdownWindow : Window
 {
-	private readonly ShutdownViewModel _viewModel;
+	private ShutdownViewModel? _viewModel;
 
 	public bool ShutdownConfirmed { get; private set; }
 
-	public ShutdownWindow(int delaySeconds = 60, string? message = null)
+	/// <summary>
+	/// Parameterless constructor required by XAML loader.
+	/// </summary>
+	public ShutdownWindow() : this(60, null)
+	{
+	}
+
+	public ShutdownWindow(int delaySeconds, string? message = null)
 	{
 		InitializeComponent();
 
@@ -32,12 +39,12 @@ public partial class ShutdownWindow : Window
 	protected override void OnOpened(EventArgs e)
 	{
 		base.OnOpened(e);
-		_viewModel.StartCountdown();
+		_viewModel?.StartCountdown();
 	}
 
 	protected override void OnClosing(WindowClosingEventArgs e)
 	{
-		_viewModel.StopCountdown();
+		_viewModel?.StopCountdown();
 		base.OnClosing(e);
 	}
 }

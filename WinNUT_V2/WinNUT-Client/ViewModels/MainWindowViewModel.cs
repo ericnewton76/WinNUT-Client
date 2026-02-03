@@ -143,6 +143,9 @@ public partial class MainWindowViewModel : ViewModelBase
 			manager.UpsDataUpdated += OnUpsManagerDataUpdated;
 			manager.UpsConnectionLost += OnUpsManagerConnectionLost;
 			manager.ShutdownConditionMet += OnUpsShutdownConditionMet;
+
+			// Initialize sidebar with configured UPS devices
+			InitializeSidebar();
 		}
 
 		// Also subscribe to first service directly for backward compatibility
@@ -151,6 +154,37 @@ public partial class MainWindowViewModel : ViewModelBase
 			_upsNetwork.RetryAttempt += OnUpsRetryAttempt;
 			_upsNetwork.ShutdownCancelled += OnUpsShutdownCancelled;
 		}
+	}
+
+	private void InitializeSidebar()
+	{
+		var manager = App.UpsManager;
+		if (manager == null) return;
+
+		foreach (var config in manager.Configs)
+		{
+			var summary = new UpsSummary
+			{
+				Id = config.Id,
+				Name = config.DisplayName,
+				Host = $"{config.Host}:{config.Port}",
+				IsConnected = false,
+				StatusColor = Brushes.Gray,
+				StatusText = "Not Connected"
+			};
+			UpsList.Add(summary);
+		}
+
+		// Select first UPS if any
+		if (UpsList.Count > 0)
+		{
+			UpsList[0].IsSelected = true;
+			SelectedUps = UpsList[0];
+			_upsNetwork = manager.GetService(UpsList[0].Id);
+		}
+
+		// Show sidebar if more than one UPS
+		ShowSidebar = UpsList.Count > 1;
 	}
 
 	private void OnUpsManagerConnected(object? sender, UpsEventArgs e)
@@ -345,7 +379,7 @@ public partial class MainWindowViewModel : ViewModelBase
 	{
 		Dispatcher.UIThread.Post(() =>
 		{
-			IsConnected = true;
+			IsConnected = App.UpsManager?.AnyConnected ?? false;
 			var host = _upsNetwork?.Host ?? "unknown";
 			var port = _upsNetwork?.Port ?? 0;
 			ConnectionStatus = $"Connected to {host}:{port}";
@@ -414,12 +448,18 @@ public partial class MainWindowViewModel : ViewModelBase
 	{
 		Dispatcher.UIThread.Post(() =>
 		{
-			IsConnected = false;
-			ConnectionStatus = "Disconnected";
-			_freshnessTimer.Stop();
-			DataFreshnessColor = Brushes.Gray;
-			DataFreshnessTooltip = "Not connected";
-			ClearUpsData();
+			IsConnected = App.UpsManager?.AnyConnected ?? false;
+			
+			if (!IsConnected)
+			{
+				ConnectionStatus = "Disconnected";
+				_freshnessTimer.Stop();
+				DataFreshnessColor = Brushes.Gray;
+				DataFreshnessTooltip = "Not connected";
+				ClearUpsData();
+			}
+			
+			UpdateUpsSidebar();
 		});
 	}
 
@@ -427,10 +467,11 @@ public partial class MainWindowViewModel : ViewModelBase
 	{
 		Dispatcher.UIThread.Post(() =>
 		{
-			IsConnected = false;
+			IsConnected = App.UpsManager?.AnyConnected ?? false;
 			ConnectionStatus = "Connection lost - reconnecting...";
 			DataFreshnessColor = Brushes.Red;
 			DataFreshnessTooltip = "Connection lost";
+			UpdateUpsSidebar();
 		});
 
 		App.Notifications?.NotifyDisconnected();

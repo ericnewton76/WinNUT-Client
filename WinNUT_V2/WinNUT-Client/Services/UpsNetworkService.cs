@@ -133,8 +133,10 @@ public class UpsNetworkService : IDisposable
 	public event EventHandler? ConnectionLost;
 	public event EventHandler? DataUpdated;
 	public event EventHandler? RetryAttempt;
+#pragma warning disable CS0067 // Event is never used (reserved for future use)
 	public event EventHandler? UnknownUps;
 	public event EventHandler? InvalidCredentials;
+#pragma warning restore CS0067
 	public event EventHandler? ShutdownCondition;
 	public event EventHandler? ShutdownCancelled;
 
