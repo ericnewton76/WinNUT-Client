@@ -67,28 +67,25 @@
 					<Border Grid.Row="2" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" 
 									CornerRadius="5" Padding="15"
 									IsVisible="{Binding SelectedUpsDevice, Converter={x:Static ObjectConverters.IsNotNull}}">
-						<Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
+						<Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
 							<TextBlock Grid.Row="0" Grid.Column="0" Text="Display Name:" VerticalAlignment="Center" />
 							<TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SelectedUpsDevice.DisplayName}" />
 
-							<TextBlock Grid.Row="1" Grid.Column="0" Text="Host:" VerticalAlignment="Center" />
-							<TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SelectedUpsDevice.HostPort}" 
-											 Watermark="hostname:port (port defaults to 3493)" />
+							<TextBlock Grid.Row="1" Grid.Column="0" Text="UPS Address:" VerticalAlignment="Center" />
+							<TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SelectedUpsDevice.Address}" 
+											 Watermark="upsname@host:port (port defaults to 3493)" />
 
-							<TextBlock Grid.Row="2" Grid.Column="0" Text="UPS Name:" VerticalAlignment="Center" />
-							<TextBox Grid.Row="2" Grid.Column="1" Text="{Binding SelectedUpsDevice.UpsName}" />
-
-							<TextBlock Grid.Row="3" Grid.Column="0" Text="Poll Interval (s):" VerticalAlignment="Center" />
-							<NumericUpDown Grid.Row="3" Grid.Column="1" Value="{Binding SelectedUpsDevice.PollingInterval}" 
+							<TextBlock Grid.Row="2" Grid.Column="0" Text="Poll Interval (s):" VerticalAlignment="Center" />
+							<NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding SelectedUpsDevice.PollingInterval}" 
 														 Minimum="1" Maximum="60" Width="100" HorizontalAlignment="Left" />
 
-							<TextBlock Grid.Row="4" Grid.Column="0" Text="Login:" VerticalAlignment="Center" />
-							<TextBox Grid.Row="4" Grid.Column="1" Text="{Binding SelectedUpsDevice.Login}" />
+							<TextBlock Grid.Row="3" Grid.Column="0" Text="Login:" VerticalAlignment="Center" />
+							<TextBox Grid.Row="3" Grid.Column="1" Text="{Binding SelectedUpsDevice.Login}" />
 
-							<TextBlock Grid.Row="5" Grid.Column="0" Text="Password:" VerticalAlignment="Center" />
-							<TextBox Grid.Row="5" Grid.Column="1" Text="{Binding SelectedUpsDevice.Password}" PasswordChar="●" />
+							<TextBlock Grid.Row="4" Grid.Column="0" Text="Password:" VerticalAlignment="Center" />
+							<TextBox Grid.Row="4" Grid.Column="1" Text="{Binding SelectedUpsDevice.Password}" PasswordChar="●" />
 
-							<StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Spacing="15">
+							<StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal" Spacing="15">
 								<CheckBox Content="Auto Reconnect" IsChecked="{Binding SelectedUpsDevice.AutoReconnect}" />
 								<CheckBox Content="Connect on startup" IsChecked="{Binding SelectedUpsDevice.AutoConnectOnStartup}" />
 							</StackPanel>
@@ -107,7 +104,7 @@
 					
 					<RadioButton Content="When ANY UPS reaches critical state (recommended)" 
 											 IsChecked="{Binding ShutdownModeAny}" Margin="0,5,0,0" />
-					<RadioButton Content="Only when PRIMARY UPS reaches critical state" 
+					<RadioButton Content="Only when PRIMARY UPS reaches critical state"
 											 IsChecked="{Binding ShutdownModePrimary}" />
 					<RadioButton Content="Only when ALL UPS devices reach critical state" 
 											 IsChecked="{Binding ShutdownModeAll}" />

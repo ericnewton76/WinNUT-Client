@@ -16,14 +16,11 @@ public partial class UpsDeviceViewModel : ObservableObject
 	[ObservableProperty]
 	private string _displayName = string.Empty;
 
+	/// <summary>
+	/// UPS address in NUT format: upsname@host:port (port defaults to 3493)
+	/// </summary>
 	[ObservableProperty]
-	private string _host = string.Empty;
-
-	[ObservableProperty]
-	private int _port = 3493;
-
-	[ObservableProperty]
-	private string _upsName = string.Empty;
+	private string _address = string.Empty;
 
 	[ObservableProperty]
 	private int _pollingInterval = 5;
@@ -46,38 +43,7 @@ public partial class UpsDeviceViewModel : ObservableObject
 	[ObservableProperty]
 	private bool _isPrimary;
 
-	/// <summary>
-	/// Combined Host:Port for editing. Port defaults to 3493 if not specified.
-	/// </summary>
-	public string HostPort
-	{
-		get => Port == 3493 ? Host : $"{Host}:{Port}";
-		set
-		{
-			if (string.IsNullOrWhiteSpace(value))
-			{
-				Host = string.Empty;
-				Port = 3493;
-				return;
-			}
-
-			var lastColon = value.LastIndexOf(':');
-			if (lastColon > 0 && int.TryParse(value[(lastColon + 1)..], out var port))
-			{
-				Host = value[..lastColon];
-				Port = port;
-			}
-			else
-			{
-				Host = value;
-				Port = 3493;
-			}
-			OnPropertyChanged(nameof(HostPort));
-			OnPropertyChanged(nameof(HostDisplay));
-		}
-	}
-
-	public string HostDisplay => $"{Host}:{Port}/{UpsName}";
+	public string HostDisplay => Address;
 }
 
 public partial class PreferencesViewModel : ViewModelBase
@@ -182,9 +148,7 @@ public partial class PreferencesViewModel : ViewModelBase
 			{
 				Id = config.Id,
 				DisplayName = config.DisplayName,
-				Host = config.Host,
-				Port = config.Port,
-				UpsName = config.UpsName,
+				Address = config.Address,
 				PollingInterval = config.PollingIntervalSeconds,
 				Login = config.Login ?? string.Empty,
 				AutoReconnect = config.AutoReconnect,
@@ -261,9 +225,7 @@ public partial class PreferencesViewModel : ViewModelBase
 			{
 				Id = deviceVm.Id,
 				DisplayName = deviceVm.DisplayName,
-				Host = deviceVm.Host,
-				Port = deviceVm.Port,
-				UpsName = deviceVm.UpsName,
+				Address = deviceVm.Address,
 				PollingIntervalSeconds = deviceVm.PollingInterval,
 				Login = string.IsNullOrEmpty(deviceVm.Login) ? null : deviceVm.Login,
 				AutoReconnect = deviceVm.AutoReconnect,
@@ -391,9 +353,7 @@ public partial class PreferencesViewModel : ViewModelBase
 		var newDevice = new UpsDeviceViewModel
 		{
 			DisplayName = $"UPS {UpsDevices.Count + 1}",
-			Host = "localhost",
-			Port = 3493,
-			UpsName = "ups",
+			Address = "ups@localhost",
 			PollingInterval = 5,
 			AutoReconnect = true,
 			AutoConnectOnStartup = true,

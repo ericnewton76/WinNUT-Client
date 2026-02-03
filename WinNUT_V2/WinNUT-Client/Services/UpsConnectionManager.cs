@@ -372,13 +372,15 @@ public class UpsConnectionManager : IDisposable
 		{
 			Log.Info("Migrating legacy single-UPS settings to multi-UPS format");
 
+			var upsName = conn.UpsName ?? "ups";
+			var host = conn.ServerAddress;
+			var port = conn.Port ?? 3493;
+
 			var legacyConfig = new UpsConnectionConfig
 			{
 				Id = Guid.NewGuid(),
-				DisplayName = conn.UpsName ?? "Primary UPS",
-				Host = conn.ServerAddress,
-				Port = conn.Port ?? 3493,
-				UpsName = conn.UpsName ?? "ups",
+				DisplayName = upsName,
+				Address = UpsConnectionConfig.FormatAddress(upsName, host, port),
 				Login = conn.Login,
 				EncryptedPassword = conn.EncryptedPassword,
 				PollingIntervalSeconds = conn.PollingIntervalSeconds ?? 5,
