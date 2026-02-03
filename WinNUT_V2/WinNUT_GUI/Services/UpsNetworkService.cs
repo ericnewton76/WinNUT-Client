@@ -149,7 +149,7 @@ public class UpsNetworkService : IDisposable
 
 		try
 		{
-			Log.Debug("Connecting to NUT server at {Host}:{Port}", Host, Port);
+			Log.Info("Connecting to NUT server at {Host}:{Port}, UPS: {UpsName}", Host, Port, UpsName);
 
 			_tcpClient = new TcpClient();
 			await _tcpClient.ConnectAsync(Host, Port, cancellationToken);
