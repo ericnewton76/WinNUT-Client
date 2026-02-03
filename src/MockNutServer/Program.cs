@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using NLog;
 
 namespace MockNutServer;
 
@@ -9,6 +10,9 @@ class Program
     private static readonly Dictionary<string, UpsDevice> _devices = new();
     private static bool _running = true;
     private static readonly object _lock = new();
+    
+    // ClientServerLog for all NUT protocol interactions - outputs to OutputDebugString
+    private static readonly Logger ClientServerLog = LogManager.GetLogger("ClientServerLog");
 
     static async Task Main(string[] args)
     {
@@ -203,6 +207,7 @@ class Program
     {
         var endpoint = client.Client.RemoteEndPoint?.ToString() ?? "unknown";
         Console.WriteLine($"[{endpoint}] Client connected");
+        ClientServerLog.Info("[{Endpoint}] Client connected", endpoint);
 
         try
         {
@@ -220,11 +225,13 @@ class Program
         catch (Exception ex)
         {
             Console.WriteLine($"[{endpoint}] Error: {ex.Message}");
+            ClientServerLog.Error(ex, "[{Endpoint}] Error", endpoint);
         }
         finally
         {
             client.Close();
             Console.WriteLine($"[{endpoint}] Client disconnected");
+            ClientServerLog.Info("[{Endpoint}] Client disconnected", endpoint);
         }
     }
 
@@ -234,7 +241,7 @@ class Program
         if (parts.Length == 0) return "ERR UNKNOWN-COMMAND\n";
 
         var cmd = parts[0].ToUpper();
-        Console.WriteLine($"[{endpoint}] << {line}");
+        ClientServerLog.Debug("[{Endpoint}] << {Command}", endpoint, line);
 
         lock (_lock)
         {
@@ -251,7 +258,7 @@ class Program
                 _ => "ERR UNKNOWN-COMMAND\n"
             };
 
-            Console.WriteLine($"[{endpoint}] >> {response.TrimEnd()}");
+            ClientServerLog.Debug("[{Endpoint}] >> {Response}", endpoint, response.TrimEnd());
             return response;
         }
     }
