@@ -36,6 +36,10 @@ public partial class App : Application
 	{
 		if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
 		{
+			// Set up global exception handling
+			AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+			TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+
 			// Initialize globals
 			WinNutGlobals.Initialize();
 
@@ -292,5 +296,26 @@ public partial class App : Application
 		{
 			BindingPlugins.DataValidators.Remove(plugin);
 		}
+	}
+
+	private void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
+	{
+		var exception = e.ExceptionObject as Exception;
+		LoggingService.Error($"Unhandled exception: {exception?.Message}");
+		LoggingService.Error(exception?.StackTrace ?? "No stack trace");
+
+		// Try to save settings before crash
+		try
+		{
+			Settings?.Save();
+		}
+		catch { }
+	}
+
+	private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+	{
+		LoggingService.Error($"Unobserved task exception: {e.Exception.Message}");
+		LoggingService.Error(e.Exception.StackTrace ?? "No stack trace");
+		e.SetObserved(); // Prevent app crash
 	}
 }
