@@ -28,10 +28,10 @@
 		<TabControl>
 			<!-- UPS Devices Tab -->
 			<TabItem Header="UPS Devices">
-				<Grid RowDefinitions="Auto,*,Auto" Margin="10">
+				<Grid RowDefinitions="140,Auto,*" Margin="10">
 					<!-- Device List -->
 					<Border Grid.Row="0" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" 
-									BorderThickness="1" CornerRadius="4" Height="140" Margin="0,0,0,10">
+									BorderThickness="1" CornerRadius="4" Margin="0,0,0,10">
 						<ListBox ItemsSource="{Binding UpsDevices}" 
 										 SelectedItem="{Binding SelectedUpsDevice}"
 										 SelectionMode="Single">
@@ -55,7 +55,7 @@
 					</Border>
 
 					<!-- List Buttons -->
-					<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="5" VerticalAlignment="Top" Margin="0,0,0,15">
+					<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="5" Margin="0,0,0,10">
 						<Button Content="Add" Command="{Binding AddUpsCommand}" Width="70" />
 						<Button Content="Remove" Command="{Binding RemoveUpsCommand}" Width="70" 
 										IsEnabled="{Binding SelectedUpsDevice, Converter={x:Static ObjectConverters.IsNotNull}}" />

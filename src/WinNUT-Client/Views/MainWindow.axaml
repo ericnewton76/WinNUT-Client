@@ -91,10 +91,10 @@
 											<MenuItem Header="View Variables" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ShowUpsVariablesCommand}" />
 										</ContextMenu>
 									</Border.ContextMenu>
-									<StackPanel Spacing="5">
+									<StackPanel Spacing="5" MaxWidth="165">
 										<!-- UPS Name -->
-										<TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13" />
-										<TextBlock Text="{Binding Host}" FontSize="11" 
+										<TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+										<TextBlock Text="{Binding Host}" FontSize="11" TextTrimming="CharacterEllipsis"
 															 Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
 										
 										<!-- Status indicator -->
@@ -105,9 +105,10 @@
 										
 										<!-- Battery bar -->
 										<Grid ColumnDefinitions="*,Auto" Margin="0,3,0,0">
-											<ProgressBar Grid.Column="0" Value="{Binding BatteryCharge}" Maximum="100" Height="6" CornerRadius="3" />
+											<ProgressBar Grid.Column="0" Value="{Binding BatteryCharge}" Maximum="100" 
+																	 Height="6" CornerRadius="3" MinWidth="80" />
 											<TextBlock Grid.Column="1" Text="{Binding BatteryCharge, StringFormat={}{0:F0}%}" 
-																 FontSize="10" Margin="5,0,0,0" VerticalAlignment="Center" />
+																 FontSize="10" Margin="5,0,0,0" VerticalAlignment="Center" MinWidth="30" />
 										</Grid>
 									</StackPanel>
 								</Border>
