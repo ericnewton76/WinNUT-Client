@@ -363,6 +363,12 @@ public class UpsNetworkService : IDisposable
 		}
 	}
 
+	public async Task<Dictionary<string, string>> GetAllVariablesAsync(CancellationToken cancellationToken = default)
+	{
+		var vars = await ListVariablesAsync(cancellationToken);
+		return vars.ToDictionary(v => v.Key, v => v.Value);
+	}
+
 	private async Task GetUpsProductInfoAsync(CancellationToken cancellationToken)
 	{
 		CurrentData.Manufacturer = await GetVariableAsync("ups.mfr", "Unknown", cancellationToken) ?? "Unknown";

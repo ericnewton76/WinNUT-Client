@@ -18,7 +18,9 @@ public static class WinNutGlobals
 {
 	public static string LongProgramName { get; private set; } = string.Empty;
 	public static string ProgramName { get; private set; } = string.Empty;
+	public static string AppName => ProgramName;
 	public static string ProgramVersion { get; private set; } = string.Empty;
+	public static string Version => ProgramVersion;
 	public static string ShortProgramVersion { get; private set; } = string.Empty;
 	public static string GitHubUrl { get; private set; } = string.Empty;
 	public static string Copyright { get; private set; } = string.Empty;

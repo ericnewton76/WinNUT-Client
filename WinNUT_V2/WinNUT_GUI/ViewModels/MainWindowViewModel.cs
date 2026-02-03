@@ -118,17 +118,23 @@ public partial class MainWindowViewModel : ViewModelBase
 	}
 
 	[RelayCommand]
-	private void ShowUpsVariables()
+	private async Task ShowUpsVariablesAsync()
 	{
-		// TODO: Open UPS variables window
-		LoggingService.Debug("Show UPS Variables requested");
+		var varsWindow = new Views.UpsVariablesWindow();
+		if (Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
+		{
+			await varsWindow.ShowDialog(lifetime.MainWindow!);
+		}
 	}
 
 	[RelayCommand]
-	private void ShowAbout()
+	private async Task ShowAboutAsync()
 	{
-		// TODO: Open about window
-		LoggingService.Debug("Show About requested");
+		var aboutWindow = new Views.AboutWindow();
+		if (Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
+		{
+			await aboutWindow.ShowDialog(lifetime.MainWindow!);
+		}
 	}
 
 	[RelayCommand]
