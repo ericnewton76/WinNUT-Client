@@ -12,4 +12,23 @@
     <Application.Styles>
         <FluentTheme />
     </Application.Styles>
+
+    <TrayIcon.Icons>
+        <TrayIcons>
+            <TrayIcon Icon="/Assets/WinNut.ico" ToolTipText="WinNUT-Client">
+                <TrayIcon.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="Show Window" Click="TrayIcon_ShowWindow" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Connect" Click="TrayIcon_Connect" />
+                        <NativeMenuItem Header="Disconnect" Click="TrayIcon_Disconnect" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Preferences" Click="TrayIcon_Preferences" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Exit" Click="TrayIcon_Exit" />
+                    </NativeMenu>
+                </TrayIcon.Menu>
+            </TrayIcon>
+        </TrayIcons>
+    </TrayIcon.Icons>
 </Application>

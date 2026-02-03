@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
@@ -16,9 +17,19 @@ public partial class App : Application
 	public static UpsNetworkService UpsNetwork { get; private set; } = null!;
 	public static NotificationService? Notifications { get; private set; }
 
+	private TrayIcon? _trayIcon;
+
 	public override void Initialize()
 	{
 		AvaloniaXamlLoader.Load(this);
+
+		// Get tray icon references after XAML load
+		var trayIcons = TrayIcon.GetIcons(this);
+		_trayIcon = trayIcons?.FirstOrDefault();
+		if (_trayIcon != null)
+		{
+			_trayIcon.Clicked += TrayIcon_Clicked;
+		}
 	}
 
 	public override void OnFrameworkInitializationCompleted()
@@ -42,6 +53,11 @@ public partial class App : Application
 			UpsNetwork = new UpsNetworkService();
 			ApplySettingsToUpsNetwork();
 
+			// Subscribe to UPS events for tray updates
+			UpsNetwork.Connected += OnUpsConnectedForTray;
+			UpsNetwork.Disconnected += OnUpsDisconnectedForTray;
+			UpsNetwork.DataUpdated += OnUpsDataUpdatedForTray;
+
 			// Initialize notifications if supported
 			if (NotificationService.IsSupported)
 			{
@@ -60,6 +76,103 @@ public partial class App : Application
 		}
 
 		base.OnFrameworkInitializationCompleted();
+	}
+
+	private void TrayIcon_Clicked(object? sender, EventArgs e)
+	{
+		ShowMainWindow();
+	}
+
+	private void TrayIcon_ShowWindow(object? sender, EventArgs e)
+	{
+		ShowMainWindow();
+	}
+
+	private async void TrayIcon_Connect(object? sender, EventArgs e)
+	{
+		if (!UpsNetwork.IsConnected)
+		{
+			try
+			{
+				await UpsNetwork.ConnectAsync();
+			}
+			catch (Exception ex)
+			{
+				LoggingService.Error($"Connection failed: {ex.Message}");
+			}
+		}
+	}
+
+	private async void TrayIcon_Disconnect(object? sender, EventArgs e)
+	{
+		if (UpsNetwork.IsConnected)
+		{
+			await UpsNetwork.DisconnectAsync();
+		}
+	}
+
+	private void TrayIcon_Preferences(object? sender, EventArgs e)
+	{
+		ShowMainWindow();
+		// The MainWindow will handle showing preferences
+		if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+			desktop.MainWindow?.DataContext is MainWindowViewModel vm)
+		{
+			vm.ShowPreferencesCommand.Execute(null);
+		}
+	}
+
+	private void TrayIcon_Exit(object? sender, EventArgs e)
+	{
+		if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+		{
+			desktop.Shutdown();
+		}
+	}
+
+	private void ShowMainWindow()
+	{
+		if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+		{
+			var window = desktop.MainWindow;
+			if (window != null)
+			{
+				window.Show();
+				window.WindowState = WindowState.Normal;
+				window.Activate();
+			}
+		}
+	}
+
+	private void OnUpsConnectedForTray(object? sender, EventArgs e)
+	{
+		UpdateTrayStatus();
+	}
+
+	private void OnUpsDisconnectedForTray(object? sender, EventArgs e)
+	{
+		UpdateTrayStatus();
+	}
+
+	private void OnUpsDataUpdatedForTray(object? sender, EventArgs e)
+	{
+		UpdateTrayStatus();
+	}
+
+	private void UpdateTrayStatus()
+	{
+		if (_trayIcon == null) return;
+
+		if (UpsNetwork.IsConnected)
+		{
+			var charge = UpsNetwork.CurrentData.BatteryCharge;
+			var status = UpsNetwork.CurrentData.Status;
+			_trayIcon.ToolTipText = $"WinNUT-Client - {status} ({charge:F0}%)";
+		}
+		else
+		{
+			_trayIcon.ToolTipText = "WinNUT-Client - Not Connected";
+		}
 	}
 
 	public static void ApplySettingsToUpsNetwork()
