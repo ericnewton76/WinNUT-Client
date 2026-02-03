@@ -15,22 +15,55 @@
 		<vm:MainWindowViewModel/>
 	</Design.DataContext>
 
-	<DockPanel Margin="10">
+	<DockPanel>
+		<!-- Menu Bar -->
+		<Menu DockPanel.Dock="Top">
+			<MenuItem Header="_File">
+				<MenuItem Header="_Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnected}">
+					<MenuItem.Icon>
+						<PathIcon Data="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6Z" />
+					</MenuItem.Icon>
+				</MenuItem>
+				<MenuItem Header="_Disconnect" Command="{Binding DisconnectCommand}" IsEnabled="{Binding IsConnected}" />
+				<Separator />
+				<MenuItem Header="E_xit" Command="{Binding ExitCommand}" InputGesture="Alt+F4" />
+			</MenuItem>
+			<MenuItem Header="_View">
+				<MenuItem Header="_UPS Variables" Command="{Binding ShowUpsVariablesCommand}" IsEnabled="{Binding IsConnected}" />
+				<Separator />
+				<MenuItem Header="View _Log File" Command="{Binding ViewLogFileCommand}" />
+			</MenuItem>
+			<MenuItem Header="_Tools">
+				<MenuItem Header="_Preferences" Command="{Binding ShowPreferencesCommand}" InputGesture="Ctrl+P" />
+			</MenuItem>
+			<MenuItem Header="_Help">
+				<MenuItem Header="_About" Command="{Binding ShowAboutCommand}" />
+				<MenuItem Header="_GitHub Repository" Command="{Binding OpenGitHubCommand}" />
+			</MenuItem>
+		</Menu>
+
 		<!-- Status Bar at bottom -->
 		<Border DockPanel.Dock="Bottom" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}" Padding="5">
-			<TextBlock Text="{Binding ConnectionStatus}" />
+			<Grid ColumnDefinitions="*,Auto">
+				<TextBlock Grid.Column="0" Text="{Binding ConnectionStatus}" />
+				<TextBlock Grid.Column="1" Text="{Binding UpsStatus}" FontWeight="Bold" Margin="10,0,0,0" />
+			</Grid>
 		</Border>
 
-		<!-- Toolbar at top -->
-		<StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="5" Margin="0,0,0,10">
-			<Button Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnected}" />
-			<Button Content="Disconnect" Command="{Binding DisconnectCommand}" IsEnabled="{Binding IsConnected}" />
-		</StackPanel>
+		<!-- Toolbar -->
+		<Border DockPanel.Dock="Top" Padding="5" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+			<StackPanel Orientation="Horizontal" Spacing="5">
+				<Button Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnected}" />
+				<Button Content="Disconnect" Command="{Binding DisconnectCommand}" IsEnabled="{Binding IsConnected}" />
+				<Separator Width="1" Margin="5,0" />
+				<Button Content="Preferences" Command="{Binding ShowPreferencesCommand}" />
+			</StackPanel>
+		</Border>
 
 		<!-- Main content -->
-		<Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*">
+		<Grid ColumnDefinitions="*,*" Margin="10">
 			<!-- UPS Info Panel -->
-			<Border Grid.Column="0" Grid.Row="0" Grid.RowSpan="2" 
+			<Border Grid.Column="0"
 							Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" 
 							CornerRadius="5" Padding="10" Margin="0,0,5,0">
 				<StackPanel Spacing="8">
@@ -53,7 +86,10 @@
 					
 					<Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="5">
 						<TextBlock Grid.Row="0" Grid.Column="0" Text="Charge:" Margin="0,0,10,0" />
-						<TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding BatteryCharge, StringFormat={}{0:F1}%}" />
+						<StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="5">
+							<ProgressBar Value="{Binding BatteryCharge}" Maximum="100" Width="100" Height="15" />
+							<TextBlock Text="{Binding BatteryCharge, StringFormat={}{0:F1}%}" />
+						</StackPanel>
 						
 						<TextBlock Grid.Row="1" Grid.Column="0" Text="Voltage:" Margin="0,0,10,0" />
 						<TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding BatteryVoltage, StringFormat={}{0:F1}V}" />
@@ -65,7 +101,7 @@
 			</Border>
 
 			<!-- Power Panel -->
-			<Border Grid.Column="1" Grid.Row="0" Grid.RowSpan="2"
+			<Border Grid.Column="1"
 							Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" 
 							CornerRadius="5" Padding="10" Margin="5,0,0,0">
 				<StackPanel Spacing="8">
@@ -83,7 +119,10 @@
 						<TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding InputFrequency, StringFormat={}{0:F1}Hz}" />
 						
 						<TextBlock Grid.Row="3" Grid.Column="0" Text="Load:" Margin="0,0,10,0" />
-						<TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Load, StringFormat={}{0:F1}%}" />
+						<StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="5">
+							<ProgressBar Value="{Binding Load}" Maximum="100" Width="100" Height="15" />
+							<TextBlock Text="{Binding Load, StringFormat={}{0:F1}%}" />
+						</StackPanel>
 						
 						<TextBlock Grid.Row="4" Grid.Column="0" Text="Power:" Margin="0,0,10,0" />
 						<TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding OutputPower, StringFormat={}{0:F0}W}" />

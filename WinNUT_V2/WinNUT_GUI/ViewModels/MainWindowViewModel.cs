@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WinNUT_Client.Services;
@@ -88,6 +90,52 @@ public partial class MainWindowViewModel : ViewModelBase
 			return;
 
 		await _upsNetwork.DisconnectAsync();
+	}
+
+	[RelayCommand]
+	private void Exit()
+	{
+		if (Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
+		{
+			lifetime.Shutdown();
+		}
+	}
+
+	[RelayCommand]
+	private void ShowPreferences()
+	{
+		// TODO: Open preferences window
+		LoggingService.Debug("Show Preferences requested");
+	}
+
+	[RelayCommand]
+	private void ShowUpsVariables()
+	{
+		// TODO: Open UPS variables window
+		LoggingService.Debug("Show UPS Variables requested");
+	}
+
+	[RelayCommand]
+	private void ShowAbout()
+	{
+		// TODO: Open about window
+		LoggingService.Debug("Show About requested");
+	}
+
+	[RelayCommand]
+	private void ViewLogFile()
+	{
+		var logPath = LoggingService.LogFilePath;
+		if (!string.IsNullOrEmpty(logPath) && File.Exists(logPath))
+		{
+			Process.Start(new ProcessStartInfo(logPath) { UseShellExecute = true });
+		}
+	}
+
+	[RelayCommand]
+	private void OpenGitHub()
+	{
+		Process.Start(new ProcessStartInfo(WinNutGlobals.GitHubUrl) { UseShellExecute = true });
 	}
 
 	private void OnUpsConnected(object? sender, EventArgs e)
