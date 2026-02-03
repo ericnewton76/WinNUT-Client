@@ -102,6 +102,9 @@ public class UpsNetworkService : IDisposable
 	private bool _isReconnecting;
 	private int _retryCount;
 	private double _frequencyFallback;
+	
+	// Semaphore to synchronize access to the network stream
+	private readonly SemaphoreSlim _commandLock = new(1, 1);
 
 	// Connection settings
 	public string Host { get; set; } = string.Empty;
@@ -166,8 +169,16 @@ public class UpsNetworkService : IDisposable
 
 			IsConnected = true;
 
-			// Get UPS product info
-			await GetUpsProductInfoAsync(cancellationToken);
+			// Get UPS product info (with lock)
+			await _commandLock.WaitAsync(cancellationToken);
+			try
+			{
+				await GetUpsProductInfoAsync(cancellationToken);
+			}
+			finally
+			{
+				_commandLock.Release();
+			}
 
 			// Start polling timer
 			StartPollingTimer();
@@ -178,7 +189,7 @@ public class UpsNetworkService : IDisposable
 			Log.Info("Connected to NUT server at {Host}:{Port}, UPS: {UpsName}", Host, Port, UpsName);
 			Connected?.Invoke(this, EventArgs.Empty);
 
-			// Get initial data
+			// Get initial data (locks internally)
 			await RetrieveUpsDataAsync(cancellationToken);
 		}
 		catch (Exception ex)
@@ -281,6 +292,23 @@ public class UpsNetworkService : IDisposable
 			return fallback;
 		}
 
+		await _commandLock.WaitAsync(cancellationToken);
+		try
+		{
+			return await GetVariableInternalAsync(variableName, fallback, cancellationToken);
+		}
+		finally
+		{
+			_commandLock.Release();
+		}
+	}
+
+	// Internal version without lock - caller must hold _commandLock
+	private async Task<string?> GetVariableInternalAsync(string variableName, string? fallback, CancellationToken cancellationToken)
+	{
+		if (_writer == null || _reader == null)
+			return fallback;
+
 		try
 		{
 			await SendCommandAsync($"GET VAR {UpsName} {variableName}", cancellationToken);
@@ -312,6 +340,7 @@ public class UpsNetworkService : IDisposable
 			return variables;
 		}
 
+		await _commandLock.WaitAsync(cancellationToken);
 		try
 		{
 			await SendCommandAsync($"LIST VAR {UpsName}", cancellationToken);
@@ -334,8 +363,8 @@ public class UpsNetworkService : IDisposable
 						{
 							var key = keyParts[2];
 							var value = parts[1];
-							var description = await GetVariableDescriptionAsync(key, cancellationToken);
-							variables.Add(new UpsVariable(key, value, description));
+							// Skip description lookup during list to avoid lock nesting
+							variables.Add(new UpsVariable(key, value, null));
 						}
 					}
 				}
@@ -345,22 +374,12 @@ public class UpsNetworkService : IDisposable
 		{
 			Log.Error(ex, "Error listing variables");
 		}
+		finally
+		{
+			_commandLock.Release();
+		}
 
 		return variables;
-	}
-
-	private async Task<string?> GetVariableDescriptionAsync(string variableName, CancellationToken cancellationToken)
-	{
-		try
-		{
-			await SendCommandAsync($"GET DESC {UpsName} {variableName}", cancellationToken);
-			var response = await ReadResponseAsync(cancellationToken);
-			return ParseResponse(response) == NutResponse.Ok ? ExtractValue(response) : null;
-		}
-		catch
-		{
-			return null;
-		}
 	}
 
 	public async Task<Dictionary<string, string>> GetAllVariablesAsync(CancellationToken cancellationToken = default)
@@ -371,10 +390,11 @@ public class UpsNetworkService : IDisposable
 
 	private async Task GetUpsProductInfoAsync(CancellationToken cancellationToken)
 	{
-		CurrentData.Manufacturer = await GetVariableAsync("ups.mfr", "Unknown", cancellationToken) ?? "Unknown";
-		CurrentData.Model = await GetVariableAsync("ups.model", "Unknown", cancellationToken) ?? "Unknown";
-		CurrentData.Serial = await GetVariableAsync("ups.serial", "Unknown", cancellationToken) ?? "Unknown";
-		CurrentData.Firmware = await GetVariableAsync("ups.firmware", "Unknown", cancellationToken) ?? "Unknown";
+		// Caller must hold _commandLock
+		CurrentData.Manufacturer = await GetVariableInternalAsync("ups.mfr", "Unknown", cancellationToken) ?? "Unknown";
+		CurrentData.Model = await GetVariableInternalAsync("ups.model", "Unknown", cancellationToken) ?? "Unknown";
+		CurrentData.Serial = await GetVariableInternalAsync("ups.serial", "Unknown", cancellationToken) ?? "Unknown";
+		CurrentData.Firmware = await GetVariableInternalAsync("ups.firmware", "Unknown", cancellationToken) ?? "Unknown";
 	}
 
 	private async Task RetrieveUpsDataAsync(CancellationToken cancellationToken = default)
@@ -382,6 +402,7 @@ public class UpsNetworkService : IDisposable
 		if (!IsConnected || _isReconnecting)
 			return;
 
+		await _commandLock.WaitAsync(cancellationToken);
 		try
 		{
 			Log.Debug("Retrieving UPS data");
@@ -389,20 +410,20 @@ public class UpsNetworkService : IDisposable
 			// Get frequency fallback if not set
 			if (_frequencyFallback == 0)
 			{
-				var nominalFreq = await GetVariableAsync("output.frequency.nominal", DefaultFrequencyHz.ToString(), cancellationToken);
+				var nominalFreq = await GetVariableInternalAsync("output.frequency.nominal", DefaultFrequencyHz.ToString(), cancellationToken);
 				_frequencyFallback = ParseDouble(nominalFreq, DefaultFrequencyHz);
 			}
 
 			// Retrieve all UPS variables
-			CurrentData.BatteryCharge = ParseDouble(await GetVariableAsync("battery.charge", "255", cancellationToken), 255);
-			CurrentData.BatteryVoltage = ParseDouble(await GetVariableAsync("battery.voltage", "12", cancellationToken), 12);
-			CurrentData.BatteryRuntimeSeconds = ParseDouble(await GetVariableAsync("battery.runtime", "86400", cancellationToken), 86400);
-			CurrentData.BatteryCapacity = ParseDouble(await GetVariableAsync("battery.capacity", "7", cancellationToken), 7);
+			CurrentData.BatteryCharge = ParseDouble(await GetVariableInternalAsync("battery.charge", "255", cancellationToken), 255);
+			CurrentData.BatteryVoltage = ParseDouble(await GetVariableInternalAsync("battery.voltage", "12", cancellationToken), 12);
+			CurrentData.BatteryRuntimeSeconds = ParseDouble(await GetVariableInternalAsync("battery.runtime", "86400", cancellationToken), 86400);
+			CurrentData.BatteryCapacity = ParseDouble(await GetVariableInternalAsync("battery.capacity", "7", cancellationToken), 7);
 
-			var inputFreq = await GetVariableAsync("input.frequency", null, cancellationToken);
+			var inputFreq = await GetVariableInternalAsync("input.frequency", null, cancellationToken);
 			if (inputFreq == null)
 			{
-				var outputFreq = await GetVariableAsync("output.frequency", _frequencyFallback.ToString(InvariantCulture), cancellationToken);
+				var outputFreq = await GetVariableInternalAsync("output.frequency", _frequencyFallback.ToString(InvariantCulture), cancellationToken);
 				CurrentData.InputFrequency = ParseDouble(outputFreq, _frequencyFallback);
 			}
 			else
@@ -410,16 +431,16 @@ public class UpsNetworkService : IDisposable
 				CurrentData.InputFrequency = ParseDouble(inputFreq, _frequencyFallback);
 			}
 
-			CurrentData.InputVoltage = ParseDouble(await GetVariableAsync("input.voltage", "220", cancellationToken), 220);
-			CurrentData.OutputVoltage = ParseDouble(await GetVariableAsync("output.voltage", CurrentData.InputVoltage.ToString(InvariantCulture), cancellationToken), CurrentData.InputVoltage);
-			CurrentData.Load = ParseDouble(await GetVariableAsync("ups.load", "100", cancellationToken), 100);
-			CurrentData.Status = await GetVariableAsync("ups.status", "OL", cancellationToken) ?? "OL";
+			CurrentData.InputVoltage = ParseDouble(await GetVariableInternalAsync("input.voltage", "220", cancellationToken), 220);
+			CurrentData.OutputVoltage = ParseDouble(await GetVariableInternalAsync("output.voltage", CurrentData.InputVoltage.ToString(InvariantCulture), cancellationToken), CurrentData.InputVoltage);
+			CurrentData.Load = ParseDouble(await GetVariableInternalAsync("ups.load", "100", cancellationToken), 100);
+			CurrentData.Status = await GetVariableInternalAsync("ups.status", "OL", cancellationToken) ?? "OL";
 
 			// Calculate output power
-			var nominalPower = ParseDouble(await GetVariableAsync("ups.realpower.nominal", "0", cancellationToken), 0);
+			var nominalPower = ParseDouble(await GetVariableInternalAsync("ups.realpower.nominal", "0", cancellationToken), 0);
 			if (nominalPower == 0)
 			{
-				CurrentData.InputCurrent = ParseDouble(await GetVariableAsync("ups.current.nominal", "1", cancellationToken), 1);
+				CurrentData.InputCurrent = ParseDouble(await GetVariableInternalAsync("ups.current.nominal", "1", cancellationToken), 1);
 				CurrentData.OutputPower = Math.Round(CurrentData.InputVoltage * 0.95 * CurrentData.InputCurrent * CosPhi);
 			}
 			else
@@ -457,6 +478,10 @@ public class UpsNetworkService : IDisposable
 		{
 			Log.Error(ex, "Error retrieving UPS data");
 			await HandleConnectionErrorAsync(ex);
+		}
+		finally
+		{
+			_commandLock.Release();
 		}
 	}
 
@@ -663,6 +688,7 @@ public class UpsNetworkService : IDisposable
 		_reader?.Dispose();
 		_networkStream?.Dispose();
 		_tcpClient?.Dispose();
+		_commandLock.Dispose();
 
 		GC.SuppressFinalize(this);
 	}

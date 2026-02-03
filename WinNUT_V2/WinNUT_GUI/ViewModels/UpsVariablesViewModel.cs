@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NLog;
@@ -31,7 +32,8 @@ public partial class UpsVariablesViewModel : ViewModelBase
 
 	public UpsVariablesViewModel()
 	{
-		_ = LoadVariablesAsync();
+		// Load on UI thread after construction
+		Dispatcher.UIThread.Post(async () => await LoadVariablesAsync());
 	}
 
 	private async Task LoadVariablesAsync()
@@ -50,21 +52,28 @@ public partial class UpsVariablesViewModel : ViewModelBase
 			}
 
 			var vars = await upsNetwork.GetAllVariablesAsync();
-			foreach (var kvp in vars.OrderBy(x => x.Key))
+			
+			// Update collection on UI thread
+			await Dispatcher.UIThread.InvokeAsync(() =>
 			{
-				Variables.Add(new UpsVariableItem { Name = kvp.Key, Value = kvp.Value });
-			}
-
-			StatusMessage = $"Loaded {Variables.Count} variables";
+				foreach (var kvp in vars.OrderBy(x => x.Key))
+				{
+					Variables.Add(new UpsVariableItem { Name = kvp.Key, Value = kvp.Value });
+				}
+				StatusMessage = $"Loaded {Variables.Count} variables";
+			});
 		}
 		catch (Exception ex)
 		{
-			StatusMessage = $"Error: {ex.Message}";
+			await Dispatcher.UIThread.InvokeAsync(() =>
+			{
+				StatusMessage = $"Error: {ex.Message}";
+			});
 			Log.Error($"Failed to load UPS variables: {ex.Message}");
 		}
 		finally
 		{
-			IsLoading = false;
+			await Dispatcher.UIThread.InvokeAsync(() => IsLoading = false);
 		}
 	}
 
