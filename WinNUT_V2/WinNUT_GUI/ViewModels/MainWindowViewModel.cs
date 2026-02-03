@@ -177,8 +177,6 @@ public partial class MainWindowViewModel : ViewModelBase
 			RetryCount = 0;
 			_freshnessTimer.Start();
 		});
-
-		App.Notifications?.NotifyConnected(_upsNetwork.Host, _upsNetwork.Port);
 	}
 
 	private void OnUpsDisconnected(object? sender, EventArgs e)
