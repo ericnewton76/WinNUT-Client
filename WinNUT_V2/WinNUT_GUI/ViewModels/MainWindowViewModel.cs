@@ -102,10 +102,19 @@ public partial class MainWindowViewModel : ViewModelBase
 	}
 
 	[RelayCommand]
-	private void ShowPreferences()
+	private async Task ShowPreferencesAsync()
 	{
-		// TODO: Open preferences window
-		LoggingService.Debug("Show Preferences requested");
+		var prefsWindow = new Views.PreferencesWindow();
+		if (Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
+		{
+			await prefsWindow.ShowDialog(lifetime.MainWindow!);
+
+			// Re-apply settings to UPS service after preferences saved
+			if (prefsWindow.DataContext is PreferencesViewModel vm && vm.DialogResult == true)
+			{
+				App.ApplySettingsToUpsNetwork();
+			}
+		}
 	}
 
 	[RelayCommand]

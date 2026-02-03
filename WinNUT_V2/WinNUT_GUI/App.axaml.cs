@@ -62,7 +62,7 @@ public partial class App : Application
 		base.OnFrameworkInitializationCompleted();
 	}
 
-	private void ApplySettingsToUpsNetwork()
+	public static void ApplySettingsToUpsNetwork()
 	{
 		var conn = Settings.Settings.Connection;
 		var power = Settings.Settings.Power;
