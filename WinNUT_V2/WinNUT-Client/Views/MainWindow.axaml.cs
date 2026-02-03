@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using WinNUT_Client.Services;
+using WinNUT_Client.ViewModels;
 
 namespace WinNUT_Client.Views;
 
@@ -36,6 +38,17 @@ public partial class MainWindow : Window
 		else
 		{
 			base.OnClosing(e);
+		}
+	}
+
+	private void SidebarItem_PointerPressed(object? sender, PointerPressedEventArgs e)
+	{
+		if (sender is Border border && border.DataContext is UpsSummary ups)
+		{
+			if (DataContext is MainWindowViewModel vm)
+			{
+				vm.SelectUps(ups);
+			}
 		}
 	}
 }

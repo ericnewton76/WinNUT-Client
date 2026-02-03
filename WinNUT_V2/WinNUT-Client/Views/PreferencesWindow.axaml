@@ -3,13 +3,13 @@
 				xmlns:vm="using:WinNUT_Client.ViewModels"
 				xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
 				xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-				mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="550"
+				mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="600"
 				x:Class="WinNUT_Client.Views.PreferencesWindow"
 				x:DataType="vm:PreferencesViewModel"
 				Icon="/Assets/WinNut.ico"
 				Title="Preferences"
-				Width="500" Height="550"
-				MinWidth="450" MinHeight="500"
+				Width="600" Height="600"
+				MinWidth="550" MinHeight="550"
 				WindowStartupLocation="CenterOwner"
 				CanResize="False">
 
@@ -26,31 +26,94 @@
 
 		<!-- Tab Control -->
 		<TabControl>
-			<!-- Connection Tab -->
-			<TabItem Header="Connection">
-				<StackPanel Margin="10" Spacing="10">
-					<Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="10">
-						<TextBlock Grid.Row="0" Grid.Column="0" Text="Server Address:" VerticalAlignment="Center" />
-						<TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ServerAddress}" />
+			<!-- UPS Devices Tab -->
+			<TabItem Header="UPS Devices">
+				<Grid RowDefinitions="Auto,*,Auto" Margin="10">
+					<!-- Device List -->
+					<Border Grid.Row="0" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" 
+									BorderThickness="1" CornerRadius="4" Height="140" Margin="0,0,0,10">
+						<ListBox ItemsSource="{Binding UpsDevices}" 
+										 SelectedItem="{Binding SelectedUpsDevice}"
+										 SelectionMode="Single">
+							<ListBox.ItemTemplate>
+								<DataTemplate DataType="vm:UpsDeviceViewModel">
+									<Grid ColumnDefinitions="*,Auto" Margin="5,3">
+										<StackPanel Grid.Column="0">
+											<TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+											<TextBlock Text="{Binding HostDisplay}" FontSize="11" 
+																 Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+										</StackPanel>
+										<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+											<TextBlock Text="Primary" FontSize="10" Foreground="Orange" 
+																 IsVisible="{Binding IsPrimary}" VerticalAlignment="Center" />
+											<CheckBox IsChecked="{Binding Enabled}" ToolTip.Tip="Enabled" />
+										</StackPanel>
+									</Grid>
+								</DataTemplate>
+							</ListBox.ItemTemplate>
+						</ListBox>
+					</Border>
 
-						<TextBlock Grid.Row="1" Grid.Column="0" Text="Port:" VerticalAlignment="Center" />
-						<NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding Port}" Minimum="1" Maximum="65535" Width="100" HorizontalAlignment="Left" />
+					<!-- List Buttons -->
+					<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="5" VerticalAlignment="Top" Margin="0,0,0,15">
+						<Button Content="Add" Command="{Binding AddUpsCommand}" Width="70" />
+						<Button Content="Remove" Command="{Binding RemoveUpsCommand}" Width="70" 
+										IsEnabled="{Binding SelectedUpsDevice, Converter={x:Static ObjectConverters.IsNotNull}}" />
+						<Button Content="Set Primary" Command="{Binding SetPrimaryUpsCommand}" Width="90"
+										IsEnabled="{Binding SelectedUpsDevice, Converter={x:Static ObjectConverters.IsNotNull}}" />
+					</StackPanel>
 
-						<TextBlock Grid.Row="2" Grid.Column="0" Text="UPS Name:" VerticalAlignment="Center" />
-						<TextBox Grid.Row="2" Grid.Column="1" Text="{Binding UpsName}" />
+					<!-- Editor Panel (visible when device selected) -->
+					<Border Grid.Row="2" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" 
+									CornerRadius="5" Padding="15"
+									IsVisible="{Binding SelectedUpsDevice, Converter={x:Static ObjectConverters.IsNotNull}}">
+						<Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
+							<TextBlock Grid.Row="0" Grid.Column="0" Text="Display Name:" VerticalAlignment="Center" />
+							<TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SelectedUpsDevice.DisplayName}" />
 
-						<TextBlock Grid.Row="3" Grid.Column="0" Text="Poll Interval (s):" VerticalAlignment="Center" />
-						<NumericUpDown Grid.Row="3" Grid.Column="1" Value="{Binding PollingInterval}" Minimum="1" Maximum="60" Width="100" HorizontalAlignment="Left" />
+							<TextBlock Grid.Row="1" Grid.Column="0" Text="Server Address:" VerticalAlignment="Center" />
+							<TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SelectedUpsDevice.Host}" />
 
-						<TextBlock Grid.Row="4" Grid.Column="0" Text="Login:" VerticalAlignment="Center" />
-						<TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Login}" />
+							<TextBlock Grid.Row="2" Grid.Column="0" Text="Port:" VerticalAlignment="Center" />
+							<NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding SelectedUpsDevice.Port}" 
+														 Minimum="1" Maximum="65535" Width="100" HorizontalAlignment="Left" />
 
-						<TextBlock Grid.Row="5" Grid.Column="0" Text="Password:" VerticalAlignment="Center" />
-						<TextBox Grid.Row="5" Grid.Column="1" Text="{Binding Password}" PasswordChar="●" />
+							<TextBlock Grid.Row="3" Grid.Column="0" Text="UPS Name:" VerticalAlignment="Center" />
+							<TextBox Grid.Row="3" Grid.Column="1" Text="{Binding SelectedUpsDevice.UpsName}" />
 
-						<CheckBox Grid.Row="6" Grid.Column="1" Content="Auto Reconnect" IsChecked="{Binding AutoReconnect}" />
-						<CheckBox Grid.Row="6" Grid.Column="0" Content="Connect on startup" IsChecked="{Binding AutoConnectOnStartup}" />
-					</Grid>
+							<TextBlock Grid.Row="4" Grid.Column="0" Text="Poll Interval (s):" VerticalAlignment="Center" />
+							<NumericUpDown Grid.Row="4" Grid.Column="1" Value="{Binding SelectedUpsDevice.PollingInterval}" 
+														 Minimum="1" Maximum="60" Width="100" HorizontalAlignment="Left" />
+
+							<TextBlock Grid.Row="5" Grid.Column="0" Text="Login:" VerticalAlignment="Center" />
+							<TextBox Grid.Row="5" Grid.Column="1" Text="{Binding SelectedUpsDevice.Login}" />
+
+							<TextBlock Grid.Row="6" Grid.Column="0" Text="Password:" VerticalAlignment="Center" />
+							<TextBox Grid.Row="6" Grid.Column="1" Text="{Binding SelectedUpsDevice.Password}" PasswordChar="●" />
+
+							<StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal" Spacing="15">
+								<CheckBox Content="Auto Reconnect" IsChecked="{Binding SelectedUpsDevice.AutoReconnect}" />
+								<CheckBox Content="Connect on startup" IsChecked="{Binding SelectedUpsDevice.AutoConnectOnStartup}" />
+							</StackPanel>
+						</Grid>
+					</Border>
+				</Grid>
+			</TabItem>
+
+			<!-- Multi-UPS Settings Tab -->
+			<TabItem Header="Multi-UPS">
+				<StackPanel Margin="10" Spacing="15">
+					<TextBlock Text="Shutdown Behavior" FontWeight="Bold" />
+					<TextBlock Text="When should WinNUT-Client trigger workstation shutdown?" 
+										 Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" 
+										 TextWrapping="Wrap" />
+					
+					<RadioButton Content="When ANY UPS reaches critical state (recommended)" 
+											 IsChecked="{Binding ShutdownModeAny}" Margin="0,5,0,0" />
+					<RadioButton Content="Only when PRIMARY UPS reaches critical state" 
+											 IsChecked="{Binding ShutdownModePrimary}" />
+					<RadioButton Content="Only when ALL UPS devices reach critical state" 
+											 IsChecked="{Binding ShutdownModeAll}" />
 				</StackPanel>
 			</TabItem>
 

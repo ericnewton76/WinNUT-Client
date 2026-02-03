@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NLog;
@@ -5,13 +6,18 @@ using WinNUT_Client.Services;
 
 namespace WinNUT_Client.ViewModels;
 
-public partial class PreferencesViewModel : ViewModelBase
+/// <summary>
+/// ViewModel for a single UPS device in the preferences list.
+/// </summary>
+public partial class UpsDeviceViewModel : ObservableObject
 {
-	private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+	public Guid Id { get; set; } = Guid.NewGuid();
 
-	// Connection settings
 	[ObservableProperty]
-	private string _serverAddress = string.Empty;
+	private string _displayName = string.Empty;
+
+	[ObservableProperty]
+	private string _host = string.Empty;
 
 	[ObservableProperty]
 	private int _port = 3493;
@@ -29,10 +35,40 @@ public partial class PreferencesViewModel : ViewModelBase
 	private string _password = string.Empty;
 
 	[ObservableProperty]
-	private bool _autoReconnect;
+	private bool _autoReconnect = true;
 
 	[ObservableProperty]
-	private bool _autoConnectOnStartup;
+	private bool _autoConnectOnStartup = true;
+
+	[ObservableProperty]
+	private bool _enabled = true;
+
+	[ObservableProperty]
+	private bool _isPrimary;
+
+	public string HostDisplay => $"{Host}:{Port}/{UpsName}";
+}
+
+public partial class PreferencesViewModel : ViewModelBase
+{
+	private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+
+	// UPS Devices
+	[ObservableProperty]
+	private ObservableCollection<UpsDeviceViewModel> _upsDevices = new();
+
+	[ObservableProperty]
+	private UpsDeviceViewModel? _selectedUpsDevice;
+
+	// Multi-UPS shutdown mode
+	[ObservableProperty]
+	private bool _shutdownModeAny = true;
+
+	[ObservableProperty]
+	private bool _shutdownModePrimary;
+
+	[ObservableProperty]
+	private bool _shutdownModeAll;
 
 	// Appearance settings
 	[ObservableProperty]
@@ -108,28 +144,48 @@ public partial class PreferencesViewModel : ViewModelBase
 	{
 		var settings = App.Settings.Settings;
 
-		// Connection
-		ServerAddress = settings.Connection.ServerAddress;
-		Port = settings.Connection.Port;
-		UpsName = settings.Connection.UpsName;
-		PollingInterval = settings.Connection.PollingIntervalSeconds;
-		Login = settings.Connection.Login ?? string.Empty;
-		AutoReconnect = settings.Connection.AutoReconnect;
-		AutoConnectOnStartup = settings.Connection.AutoConnectOnStartup;
-
-		// Decrypt password
-		if (!string.IsNullOrEmpty(settings.Connection.EncryptedPassword))
+		// Load UPS Devices
+		foreach (var config in settings.Connection.Devices)
 		{
-			using var crypto = new CryptographyService();
-			try
+			var deviceVm = new UpsDeviceViewModel
 			{
-				Password = crypto.Decrypt(settings.Connection.EncryptedPassword);
-			}
-			catch
+				Id = config.Id,
+				DisplayName = config.DisplayName,
+				Host = config.Host,
+				Port = config.Port,
+				UpsName = config.UpsName,
+				PollingInterval = config.PollingIntervalSeconds,
+				Login = config.Login ?? string.Empty,
+				AutoReconnect = config.AutoReconnect,
+				AutoConnectOnStartup = config.AutoConnectOnStartup,
+				Enabled = config.Enabled,
+				IsPrimary = config.Id == settings.Connection.PrimaryUpsId
+			};
+
+			// Decrypt password
+			if (!string.IsNullOrEmpty(config.EncryptedPassword))
 			{
-				Password = string.Empty;
+				try
+				{
+					deviceVm.Password = App.Crypto.Decrypt(config.EncryptedPassword);
+				}
+				catch
+				{
+					deviceVm.Password = string.Empty;
+				}
 			}
+
+			UpsDevices.Add(deviceVm);
 		}
+
+		// Select first device if any
+		if (UpsDevices.Count > 0)
+			SelectedUpsDevice = UpsDevices[0];
+
+		// Multi-UPS shutdown mode
+		ShutdownModeAny = settings.Connection.ShutdownMode == MultiUpsShutdownMode.AnyUpsCritical;
+		ShutdownModePrimary = settings.Connection.ShutdownMode == MultiUpsShutdownMode.PrimaryOnly;
+		ShutdownModeAll = settings.Connection.ShutdownMode == MultiUpsShutdownMode.AllUpsCritical;
 
 		// Appearance
 		MinimizeToTray = settings.Appearance.MinimizeToTray;
@@ -164,25 +220,47 @@ public partial class PreferencesViewModel : ViewModelBase
 	{
 		var settings = App.Settings.Settings;
 
-		// Connection
-		settings.Connection.ServerAddress = ServerAddress;
-		settings.Connection.Port = Port;
-		settings.Connection.UpsName = UpsName;
-		settings.Connection.PollingIntervalSeconds = PollingInterval;
-		settings.Connection.Login = string.IsNullOrEmpty(Login) ? null : Login;
-		settings.Connection.AutoReconnect = AutoReconnect;
-		settings.Connection.AutoConnectOnStartup = AutoConnectOnStartup;
+		// Save all UPS devices
+		settings.Connection.Devices.Clear();
+		Guid? primaryId = null;
 
-		// Encrypt password
-		if (!string.IsNullOrEmpty(Password))
+		foreach (var deviceVm in UpsDevices)
 		{
-			using var crypto = new CryptographyService();
-			settings.Connection.EncryptedPassword = crypto.Encrypt(Password);
+			var config = new UpsConnectionConfig
+			{
+				Id = deviceVm.Id,
+				DisplayName = deviceVm.DisplayName,
+				Host = deviceVm.Host,
+				Port = deviceVm.Port,
+				UpsName = deviceVm.UpsName,
+				PollingIntervalSeconds = deviceVm.PollingInterval,
+				Login = string.IsNullOrEmpty(deviceVm.Login) ? null : deviceVm.Login,
+				AutoReconnect = deviceVm.AutoReconnect,
+				AutoConnectOnStartup = deviceVm.AutoConnectOnStartup,
+				Enabled = deviceVm.Enabled
+			};
+
+			// Encrypt password
+			if (!string.IsNullOrEmpty(deviceVm.Password))
+			{
+				config.EncryptedPassword = App.Crypto.Encrypt(deviceVm.Password);
+			}
+
+			settings.Connection.Devices.Add(config);
+
+			if (deviceVm.IsPrimary)
+				primaryId = deviceVm.Id;
 		}
-		else
-		{
-			settings.Connection.EncryptedPassword = null;
-		}
+
+		settings.Connection.PrimaryUpsId = primaryId;
+
+		// Multi-UPS shutdown mode
+		if (ShutdownModeAny)
+			settings.Connection.ShutdownMode = MultiUpsShutdownMode.AnyUpsCritical;
+		else if (ShutdownModePrimary)
+			settings.Connection.ShutdownMode = MultiUpsShutdownMode.PrimaryOnly;
+		else if (ShutdownModeAll)
+			settings.Connection.ShutdownMode = MultiUpsShutdownMode.AllUpsCritical;
 
 		// Appearance
 		settings.Appearance.MinimizeToTray = MinimizeToTray;
@@ -213,6 +291,9 @@ public partial class PreferencesViewModel : ViewModelBase
 
 		// Save to file
 		App.Settings.Save();
+
+		// Reload UPS manager with new settings
+		App.UpsManager.LoadFromSettings(settings);
 
 		// Update logging
 		LoggingSetup.SetLogLevel(settings.Logging.LogLevel);
@@ -271,6 +352,72 @@ public partial class PreferencesViewModel : ViewModelBase
 		{
 			return false;
 		}
+	}
+
+	[RelayCommand]
+	private void AddUps()
+	{
+		var newDevice = new UpsDeviceViewModel
+		{
+			DisplayName = $"UPS {UpsDevices.Count + 1}",
+			Host = "localhost",
+			Port = 3493,
+			UpsName = "ups",
+			PollingInterval = 5,
+			AutoReconnect = true,
+			AutoConnectOnStartup = true,
+			Enabled = true
+		};
+
+		UpsDevices.Add(newDevice);
+		SelectedUpsDevice = newDevice;
+
+		// If this is the first device, make it primary
+		if (UpsDevices.Count == 1)
+		{
+			newDevice.IsPrimary = true;
+		}
+	}
+
+	[RelayCommand]
+	private void RemoveUps()
+	{
+		if (SelectedUpsDevice == null) return;
+
+		var wasPrimary = SelectedUpsDevice.IsPrimary;
+		var index = UpsDevices.IndexOf(SelectedUpsDevice);
+		UpsDevices.Remove(SelectedUpsDevice);
+
+		// Select another device
+		if (UpsDevices.Count > 0)
+		{
+			SelectedUpsDevice = UpsDevices[Math.Min(index, UpsDevices.Count - 1)];
+
+			// Transfer primary to first device if removed was primary
+			if (wasPrimary)
+			{
+				UpsDevices[0].IsPrimary = true;
+			}
+		}
+		else
+		{
+			SelectedUpsDevice = null;
+		}
+	}
+
+	[RelayCommand]
+	private void SetPrimaryUps()
+	{
+		if (SelectedUpsDevice == null) return;
+
+		// Clear all primary flags
+		foreach (var device in UpsDevices)
+		{
+			device.IsPrimary = false;
+		}
+
+		// Set selected as primary
+		SelectedUpsDevice.IsPrimary = true;
 	}
 
 	[RelayCommand]

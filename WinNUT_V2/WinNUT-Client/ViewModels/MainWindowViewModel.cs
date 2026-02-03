@@ -15,6 +15,8 @@ namespace WinNUT_Client.ViewModels;
 /// </summary>
 public partial class UpsSummary : ObservableObject
 {
+	public Guid Id { get; set; }
+
 	[ObservableProperty]
 	private string _name = string.Empty;
 
@@ -26,6 +28,9 @@ public partial class UpsSummary : ObservableObject
 
 	[ObservableProperty]
 	private bool _isOnBattery;
+
+	[ObservableProperty]
+	private bool _isConnected;
 
 	[ObservableProperty]
 	private double _batteryCharge;
@@ -46,7 +51,7 @@ public partial class MainWindowViewModel : ViewModelBase
 {
 	private static readonly Logger Log = LogManager.GetCurrentClassLogger();
 
-	private readonly UpsNetworkService _upsNetwork;
+	private UpsNetworkService? _upsNetwork;
 	private readonly System.Timers.Timer _freshnessTimer;
 	private DateTime _lastUpdateTime;
 
@@ -129,14 +134,65 @@ public partial class MainWindowViewModel : ViewModelBase
 		_freshnessTimer.Elapsed += (_, _) => UpdateFreshnessIndicator();
 		_freshnessTimer.AutoReset = true;
 
-		// Subscribe to UPS events
-		_upsNetwork.Connected += OnUpsConnected;
-		_upsNetwork.Disconnected += OnUpsDisconnected;
-		_upsNetwork.ConnectionLost += OnUpsConnectionLost;
-		_upsNetwork.DataUpdated += OnUpsDataUpdated;
-		_upsNetwork.RetryAttempt += OnUpsRetryAttempt;
-		_upsNetwork.ShutdownCondition += OnUpsShutdownCondition;
-		_upsNetwork.ShutdownCancelled += OnUpsShutdownCancelled;
+		// Subscribe to UPS manager events (works for all UPS devices)
+		var manager = App.UpsManager;
+		if (manager != null)
+		{
+			manager.UpsConnected += OnUpsManagerConnected;
+			manager.UpsDisconnected += OnUpsManagerDisconnected;
+			manager.UpsDataUpdated += OnUpsManagerDataUpdated;
+			manager.UpsConnectionLost += OnUpsManagerConnectionLost;
+			manager.ShutdownConditionMet += OnUpsShutdownConditionMet;
+		}
+
+		// Also subscribe to first service directly for backward compatibility
+		if (_upsNetwork != null)
+		{
+			_upsNetwork.RetryAttempt += OnUpsRetryAttempt;
+			_upsNetwork.ShutdownCancelled += OnUpsShutdownCancelled;
+		}
+	}
+
+	private void OnUpsManagerConnected(object? sender, UpsEventArgs e)
+	{
+		// Update _upsNetwork reference to the connected service
+		_upsNetwork = e.Service;
+		Dispatcher.UIThread.Post(() =>
+		{
+			OnUpsConnected(sender, EventArgs.Empty);
+		});
+	}
+
+	private void OnUpsManagerDisconnected(object? sender, UpsEventArgs e)
+	{
+		Dispatcher.UIThread.Post(() =>
+		{
+			OnUpsDisconnected(sender, EventArgs.Empty);
+		});
+	}
+
+	private void OnUpsManagerDataUpdated(object? sender, UpsEventArgs e)
+	{
+		Dispatcher.UIThread.Post(() =>
+		{
+			OnUpsDataUpdated(sender, EventArgs.Empty);
+		});
+	}
+
+	private void OnUpsManagerConnectionLost(object? sender, UpsEventArgs e)
+	{
+		Dispatcher.UIThread.Post(() =>
+		{
+			OnUpsConnectionLost(sender, EventArgs.Empty);
+		});
+	}
+
+	private void OnUpsShutdownConditionMet(object? sender, EventArgs e)
+	{
+		Dispatcher.UIThread.Post(() =>
+		{
+			OnUpsShutdownCondition(sender, EventArgs.Empty);
+		});
 	}
 
 	[RelayCommand]
@@ -148,7 +204,7 @@ public partial class MainWindowViewModel : ViewModelBase
 		ConnectionStatus = "Connecting...";
 		try
 		{
-			await _upsNetwork.ConnectAsync();
+			await App.UpsManager.ConnectAllAsync();
 		}
 		catch (Exception ex)
 		{
@@ -162,7 +218,65 @@ public partial class MainWindowViewModel : ViewModelBase
 		if (!IsConnected)
 			return;
 
-		await _upsNetwork.DisconnectAsync();
+		await App.UpsManager.DisconnectAllAsync();
+	}
+
+	/// <summary>
+	/// Selects a UPS from the sidebar.
+	/// </summary>
+	public void SelectUps(UpsSummary ups)
+	{
+		// Deselect all
+		foreach (var u in UpsList)
+		{
+			u.IsSelected = false;
+		}
+
+		// Select the clicked one
+		ups.IsSelected = true;
+		SelectedUps = ups;
+
+		// Switch the active UPS service reference
+		var service = App.UpsManager.GetService(ups.Id);
+		if (service != null)
+		{
+			_upsNetwork = service;
+			// Update display with this UPS's data
+			if (service.IsConnected)
+			{
+				OnUpsDataUpdated(this, EventArgs.Empty);
+			}
+		}
+	}
+
+	[RelayCommand]
+	private async Task ConnectUpsAsync(UpsSummary? ups)
+	{
+		if (ups == null) return;
+		
+		try
+		{
+			await App.UpsManager.ConnectAsync(ups.Id);
+		}
+		catch (Exception ex)
+		{
+			Log.Error(ex, "Failed to connect UPS {Name}", ups.DisplayName);
+		}
+	}
+
+	[RelayCommand]
+	private async Task DisconnectUpsAsync(UpsSummary? ups)
+	{
+		if (ups == null) return;
+
+		try
+		{
+			await App.UpsManager.DisconnectAsync(ups.Id);
+		}
+		catch (Exception ex)
+		{
+			Log.Error(ex, "Failed to disconnect UPS {Name}", ups.DisplayName);
+		}
 	}
 
 	[RelayCommand]
@@ -182,10 +296,11 @@ public partial class MainWindowViewModel : ViewModelBase
 		{
 			await prefsWindow.ShowDialog(lifetime.MainWindow!);
 
-			// Re-apply settings to UPS service after preferences saved
+			// After preferences saved, reload settings to UPS manager
 			if (prefsWindow.DataContext is PreferencesViewModel vm && vm.DialogResult == true)
 			{
-				App.ApplySettingsToUpsNetwork();
+				// Settings already saved - manager will pick up changes on next connection
+				// If connected, would need to reconnect to apply connection changes
 			}
 		}
 	}
@@ -231,7 +346,9 @@ public partial class MainWindowViewModel : ViewModelBase
 		Dispatcher.UIThread.Post(() =>
 		{
 			IsConnected = true;
-			ConnectionStatus = $"Connected to {_upsNetwork.Host}:{_upsNetwork.Port}";
+			var host = _upsNetwork?.Host ?? "unknown";
+			var port = _upsNetwork?.Port ?? 0;
+			ConnectionStatus = $"Connected to {host}:{port}";
 			RetryCount = 0;
 			_freshnessTimer.Start();
 
@@ -242,28 +359,51 @@ public partial class MainWindowViewModel : ViewModelBase
 
 	private void UpdateUpsSidebar()
 	{
-		var existing = UpsList.FirstOrDefault(u => u.Host == _upsNetwork.Host && u.Name == _upsNetwork.UpsName);
-		if (existing == null)
+		// Update sidebar from all UPS configs
+		var manager = App.UpsManager;
+		if (manager == null) return;
+
+		foreach (var config in manager.Configs)
 		{
-			existing = new UpsSummary
+			var service = manager.GetService(config.Id);
+			var existing = UpsList.FirstOrDefault(u => u.Id == config.Id);
+			
+			if (existing == null)
 			{
-				Name = _upsNetwork.UpsName,
-				Host = _upsNetwork.Host
-			};
-			UpsList.Add(existing);
+				existing = new UpsSummary
+				{
+					Id = config.Id,
+					Name = config.DisplayName,
+					Host = $"{config.Host}:{config.Port}"
+				};
+				UpsList.Add(existing);
+			}
+
+			// Update from service data if connected
+			if (service != null && service.IsConnected)
+			{
+				existing.IsConnected = true;
+				existing.IsOnline = service.CurrentData.IsOnline;
+				existing.IsOnBattery = service.CurrentData.IsOnBattery;
+				existing.BatteryCharge = service.CurrentData.BatteryCharge;
+				existing.StatusColor = existing.IsOnline ? Brushes.Green : (existing.IsOnBattery ? Brushes.Orange : Brushes.Gray);
+				existing.StatusText = existing.IsOnline ? "Online" : (existing.IsOnBattery ? "On Battery" : "Unknown");
+			}
+			else
+			{
+				existing.IsConnected = false;
+				existing.StatusColor = Brushes.Gray;
+				existing.StatusText = "Disconnected";
+			}
 		}
 
-		existing.IsOnline = _upsNetwork.CurrentData.IsOnline;
-		existing.IsOnBattery = _upsNetwork.CurrentData.IsOnBattery;
-		existing.BatteryCharge = _upsNetwork.CurrentData.BatteryCharge;
-		existing.StatusColor = existing.IsOnline ? Brushes.Green : (existing.IsOnBattery ? Brushes.Orange : Brushes.Gray);
-		existing.StatusText = existing.IsOnline ? "Online" : (existing.IsOnBattery ? "On Battery" : "Unknown");
-
-		// Select this UPS if none selected
-		if (SelectedUps == null)
+		// Select first UPS if none selected
+		if (SelectedUps == null && UpsList.Count > 0)
 		{
-			SelectedUps = existing;
-			existing.IsSelected = true;
+			var first = UpsList.First();
+			first.IsSelected = true;
+			SelectedUps = first;
+			_upsNetwork = manager.GetService(first.Id);
 		}
 
 		// Show sidebar if more than one UPS
@@ -298,6 +438,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
 	private void OnUpsDataUpdated(object? sender, EventArgs e)
 	{
+		if (_upsNetwork == null) return;
 		var data = _upsNetwork.CurrentData;
 
 		Dispatcher.UIThread.Post(() =>
@@ -371,7 +512,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
 	private void UpdateFreshnessIndicator()
 	{
-		if (!IsConnected)
+		if (!IsConnected || _upsNetwork == null)
 			return;
 
 		var age = DateTime.Now - _lastUpdateTime;
@@ -398,6 +539,7 @@ public partial class MainWindowViewModel : ViewModelBase
 	{
 		Dispatcher.UIThread.Post(() =>
 		{
+			if (_upsNetwork == null) return;
 			RetryCount = _upsNetwork.RetryCount;
 			ConnectionStatus = $"Reconnecting... ({RetryCount}/{_upsNetwork.MaxRetries})";
 		});

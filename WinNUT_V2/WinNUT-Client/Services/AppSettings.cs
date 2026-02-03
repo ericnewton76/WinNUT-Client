@@ -19,7 +19,7 @@ public class AppSettings
 	[JsonPropertyName("$schema")]
 	public string Schema { get; set; } = "https://raw.githubusercontent.com/ericnewton76/WinNUT-Client/main/schemas/settings.schema.json";
 
-	public int Version { get; set; } = 1;
+	public int Version { get; set; } = 2;
 
 	public ConnectionSettings Connection { get; set; } = new();
 	public CalibrationSettings Calibration { get; set; } = new();
@@ -29,21 +29,68 @@ public class AppSettings
 	public UpdateSettings Update { get; set; } = new();
 }
 
-public class ConnectionSettings
+/// <summary>
+/// Configuration for a single UPS connection.
+/// </summary>
+public class UpsConnectionConfig
 {
-	public string ServerAddress { get; set; } = "proxmox01.local";
+	public Guid Id { get; set; } = Guid.NewGuid();
+	public string DisplayName { get; set; } = string.Empty;
+	public string Host { get; set; } = string.Empty;
 	public int Port { get; set; } = 3493;
-	public string UpsName { get; set; } = "apc1500";
-	public int PollingIntervalSeconds { get; set; } = 5;
+	public string UpsName { get; set; } = string.Empty;
 	public string? Login { get; set; }
+	public string? EncryptedPassword { get; set; }
+	public int PollingIntervalSeconds { get; set; } = 5;
+	public bool AutoReconnect { get; set; } = true;
+	public bool AutoConnectOnStartup { get; set; } = true;
+	public bool Enabled { get; set; } = true;
 
 	/// <summary>
-	/// Encrypted password. Use CryptographyService to encrypt/decrypt.
+	/// Creates a display-friendly name for this UPS.
 	/// </summary>
-	public string? EncryptedPassword { get; set; }
+	[JsonIgnore]
+	public string EffectiveDisplayName => !string.IsNullOrEmpty(DisplayName) ? DisplayName : $"{UpsName}@{Host}";
+}
 
-	public bool AutoReconnect { get; set; } = false;
-	public bool AutoConnectOnStartup { get; set; } = false;
+/// <summary>
+/// Determines how multiple UPS devices affect shutdown behavior.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum MultiUpsShutdownMode
+{
+	/// <summary>Shutdown if any UPS reaches critical state.</summary>
+	AnyUpsCritical = 0,
+	/// <summary>Only the primary UPS triggers shutdown.</summary>
+	PrimaryOnly = 1,
+	/// <summary>Shutdown only when all UPS devices are critical.</summary>
+	AllUpsCritical = 2
+}
+
+public class ConnectionSettings
+{
+	// Legacy single-UPS settings (for migration from v1)
+	[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+	public string? ServerAddress { get; set; }
+	[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+	public int? Port { get; set; }
+	[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+	public string? UpsName { get; set; }
+	[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+	public int? PollingIntervalSeconds { get; set; }
+	[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+	public string? Login { get; set; }
+	[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+	public string? EncryptedPassword { get; set; }
+	[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+	public bool? AutoReconnect { get; set; }
+	[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+	public bool? AutoConnectOnStartup { get; set; }
+
+	// Multi-UPS settings
+	public List<UpsConnectionConfig> Devices { get; set; } = new();
+	public MultiUpsShutdownMode ShutdownMode { get; set; } = MultiUpsShutdownMode.AnyUpsCritical;
+	public Guid? PrimaryUpsId { get; set; }
 }
 
 public class CalibrationSettings

@@ -17,8 +17,14 @@ public partial class App : Application
 	private static readonly Logger Log = LogManager.GetCurrentClassLogger();
 
 	public static SettingsService Settings { get; private set; } = null!;
-	public static UpsNetworkService UpsNetwork { get; private set; } = null!;
+	public static CryptographyService Crypto { get; private set; } = null!;
+	public static UpsConnectionManager UpsManager { get; private set; } = null!;
 	public static NotificationService? Notifications { get; private set; }
+
+	// Convenience property for single-UPS scenarios (returns first connected service)
+	public static UpsNetworkService? UpsNetwork => UpsManager?.Configs.Count > 0 
+		? UpsManager.GetService(UpsManager.Configs[0].Id) 
+		: null;
 
 	private TrayIcon? _trayIcon;
 
@@ -55,14 +61,23 @@ public partial class App : Application
 			LoggingSetup.SetFileLoggingEnabled(Settings.Settings.Logging.EnableFileLogging);
 			LoggingSetup.SetLogLevel(Settings.Settings.Logging.LogLevel);
 
-			// Initialize UPS network service
-			UpsNetwork = new UpsNetworkService();
-			ApplySettingsToUpsNetwork();
+			// Initialize cryptography service
+			Crypto = new CryptographyService();
 
-			// Subscribe to UPS events for tray updates
-			UpsNetwork.Connected += OnUpsConnectedForTray;
-			UpsNetwork.Disconnected += OnUpsDisconnectedForTray;
-			UpsNetwork.DataUpdated += OnUpsDataUpdatedForTray;
+			// Initialize UPS connection manager
+			UpsManager = new UpsConnectionManager(Crypto);
+			UpsManager.LoadFromSettings(Settings.Settings);
+
+			// Save settings if migration occurred
+			if (Settings.Settings.Version == 2 && Settings.Settings.Connection.Devices.Count > 0)
+			{
+				Settings.Save();
+			}
+
+			// Subscribe to UPS manager events for tray updates
+			UpsManager.UpsConnected += OnUpsConnectedForTray;
+			UpsManager.UpsDisconnected += OnUpsDisconnectedForTray;
+			UpsManager.AggregateStatusChanged += OnUpsStatusChangedForTray;
 
 			// Initialize notifications if supported
 			if (NotificationService.IsSupported)
@@ -97,11 +112,8 @@ public partial class App : Application
 
 			desktop.ShutdownRequested += OnShutdownRequested;
 
-			// Auto-connect on startup if enabled
-			if (Settings.Settings.Connection.AutoConnectOnStartup)
-			{
-				_ = AutoConnectAsync();
-			}
+			// Auto-connect on startup
+			_ = AutoConnectAsync();
 		}
 
 		base.OnFrameworkInitializationCompleted();
@@ -112,6 +124,11 @@ public partial class App : Application
 		// Small delay to let UI initialize
 		await Task.Delay(500);
 
+		// Check if any UPS is configured for auto-connect
+		var autoConnectDevices = UpsManager.Configs.Where(c => c.Enabled && c.AutoConnectOnStartup).ToList();
+		if (autoConnectDevices.Count == 0)
+			return;
+
 		// Update status via ViewModel
 		if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
 			desktop.MainWindow?.DataContext is MainWindowViewModel vm)
@@ -121,7 +138,7 @@ public partial class App : Application
 
 		try
 		{
-			await UpsNetwork.ConnectAsync();
+			await UpsManager.ConnectAllAsync();
 		}
 		catch (Exception ex)
 		{
@@ -148,7 +165,7 @@ public partial class App : Application
 
 	private async void TrayIcon_Connect(object? sender, EventArgs e)
 	{
-		if (!UpsNetwork.IsConnected)
+		if (!UpsManager.AnyConnected)
 		{
 			// Update status via ViewModel
 			if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
@@ -159,7 +176,7 @@ public partial class App : Application
 
 			try
 			{
-				await UpsNetwork.ConnectAsync();
+				await UpsManager.ConnectAllAsync();
 			}
 			catch (Exception ex)
 			{
@@ -177,9 +194,9 @@ public partial class App : Application
 
 	private async void TrayIcon_Disconnect(object? sender, EventArgs e)
 	{
-		if (UpsNetwork.IsConnected)
+		if (UpsManager.AnyConnected)
 		{
-			await UpsNetwork.DisconnectAsync();
+			await UpsManager.DisconnectAllAsync();
 		}
 	}
 
@@ -217,17 +234,17 @@ public partial class App : Application
 		}
 	}
 
-	private void OnUpsConnectedForTray(object? sender, EventArgs e)
+	private void OnUpsConnectedForTray(object? sender, UpsEventArgs e)
 	{
 		Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTrayStatus);
 	}
 
-	private void OnUpsDisconnectedForTray(object? sender, EventArgs e)
+	private void OnUpsDisconnectedForTray(object? sender, UpsEventArgs e)
 	{
 		Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTrayStatus);
 	}
 
-	private void OnUpsDataUpdatedForTray(object? sender, EventArgs e)
+	private void OnUpsStatusChangedForTray(object? sender, EventArgs e)
 	{
 		Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTrayStatus);
 	}
@@ -236,11 +253,36 @@ public partial class App : Application
 	{
 		if (_trayIcon == null) return;
 
-		if (UpsNetwork.IsConnected)
+		var status = UpsManager.GetAggregateStatus();
+
+		if (status.ConnectedCount > 0)
 		{
-			var charge = UpsNetwork.CurrentData.BatteryCharge;
-			var status = UpsNetwork.CurrentData.Status;
-			_trayIcon.ToolTipText = $"WinNUT-Client - {status} ({charge:F0}%)";
+			var stateText = status.State switch
+			{
+				AggregateState.Online => "Online",
+				AggregateState.OnBattery => "On Battery",
+				AggregateState.Critical => "CRITICAL",
+				_ => "Unknown"
+			};
+
+			if (status.TotalCount > 1)
+			{
+				_trayIcon.ToolTipText = $"WinNUT-Client - {stateText} ({status.ConnectedCount}/{status.TotalCount} UPS)";
+			}
+			else
+			{
+				// Single UPS - show more detail
+				var service = UpsNetwork;
+				if (service != null)
+				{
+					var charge = service.CurrentData.BatteryCharge;
+					_trayIcon.ToolTipText = $"WinNUT-Client - {stateText} ({charge:F0}%)";
+				}
+				else
+				{
+					_trayIcon.ToolTipText = $"WinNUT-Client - {stateText}";
+				}
+			}
 		}
 		else
 		{
@@ -248,42 +290,11 @@ public partial class App : Application
 		}
 	}
 
-	public static void ApplySettingsToUpsNetwork()
-	{
-		var conn = Settings.Settings.Connection;
-		var power = Settings.Settings.Power;
-
-		UpsNetwork.Host = conn.ServerAddress;
-		UpsNetwork.Port = conn.Port;
-		UpsNetwork.UpsName = conn.UpsName;
-		UpsNetwork.PollingIntervalMs = conn.PollingIntervalSeconds * 1000;
-		UpsNetwork.Login = conn.Login;
-		UpsNetwork.AutoReconnect = conn.AutoReconnect;
-		UpsNetwork.BatteryLimitPercent = power.ShutdownLimitBatteryCharge;
-		UpsNetwork.BackupLimitSeconds = power.ShutdownLimitUpsRemainTimeSeconds;
-		UpsNetwork.FollowFsd = power.FollowFsd;
-		UpsNetwork.DefaultFrequencyHz = Settings.Settings.Calibration.FrequencySupply == FrequencyType.Hz50 ? 50 : 60;
-
-		// Decrypt password if present
-		if (!string.IsNullOrEmpty(conn.EncryptedPassword))
-		{
-			using var crypto = new CryptographyService();
-			try
-			{
-				UpsNetwork.Password = crypto.Decrypt(conn.EncryptedPassword);
-			}
-			catch
-			{
-				// Password decryption failed, leave empty
-				UpsNetwork.Password = null;
-			}
-		}
-	}
-
 	private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
 	{
 		// Cleanup
-		UpsNetwork?.Dispose();
+		UpsManager?.Dispose();
+		Crypto?.Dispose();
 		LoggingSetup.Shutdown();
 	}
 

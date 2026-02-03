@@ -45,7 +45,7 @@ public partial class UpsVariablesViewModel : ViewModelBase
 		try
 		{
 			var upsNetwork = App.UpsNetwork;
-			if (!upsNetwork.IsConnected)
+			if (upsNetwork == null || !upsNetwork.IsConnected)
 			{
 				StatusMessage = "Not connected to UPS";
 				return;
