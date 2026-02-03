@@ -19,118 +19,118 @@ namespace WinNUT_Client.Services;
 /// </summary>
 public sealed class CryptographyService : IDisposable
 {
-    private readonly TripleDES _tripleDes;
-    private bool _disposed;
+	private readonly TripleDES _tripleDes;
+	private bool _disposed;
 
-    public CryptographyService()
-    {
-        _tripleDes = TripleDES.Create();
-        _tripleDes.Key = TruncateHash(GetUniqueKeyHash(), _tripleDes.KeySize / 8);
-        _tripleDes.IV = TruncateHash(string.Empty, _tripleDes.BlockSize / 8);
-    }
+	public CryptographyService()
+	{
+		_tripleDes = TripleDES.Create();
+		_tripleDes.Key = TruncateHash(GetUniqueKeyHash(), _tripleDes.KeySize / 8);
+		_tripleDes.IV = TruncateHash(string.Empty, _tripleDes.BlockSize / 8);
+	}
 
-    private static byte[] TruncateHash(string key, int length)
-    {
-        var keyBytes = Encoding.Unicode.GetBytes(key);
-        var hash = SHA1.HashData(keyBytes);
+	private static byte[] TruncateHash(string key, int length)
+	{
+		var keyBytes = Encoding.Unicode.GetBytes(key);
+		var hash = SHA1.HashData(keyBytes);
 
-        // Truncate or pad the hash
-        Array.Resize(ref hash, length);
-        return hash;
-    }
+		// Truncate or pad the hash
+		Array.Resize(ref hash, length);
+		return hash;
+	}
 
-    public string Encrypt(string? plaintext)
-    {
-        plaintext ??= string.Empty;
+	public string Encrypt(string? plaintext)
+	{
+		plaintext ??= string.Empty;
 
-        var plaintextBytes = Encoding.Unicode.GetBytes(plaintext);
+		var plaintextBytes = Encoding.Unicode.GetBytes(plaintext);
 
-        using var ms = new MemoryStream();
-        using var encStream = new CryptoStream(ms, _tripleDes.CreateEncryptor(), CryptoStreamMode.Write);
-        
-        encStream.Write(plaintextBytes, 0, plaintextBytes.Length);
-        encStream.FlushFinalBlock();
+		using var ms = new MemoryStream();
+		using var encStream = new CryptoStream(ms, _tripleDes.CreateEncryptor(), CryptoStreamMode.Write);
 
-        return Convert.ToBase64String(ms.ToArray());
-    }
+		encStream.Write(plaintextBytes, 0, plaintextBytes.Length);
+		encStream.FlushFinalBlock();
 
-    public string Decrypt(string encryptedText)
-    {
-        var encryptedBytes = Convert.FromBase64String(encryptedText);
+		return Convert.ToBase64String(ms.ToArray());
+	}
 
-        using var ms = new MemoryStream();
-        using var decStream = new CryptoStream(ms, _tripleDes.CreateDecryptor(), CryptoStreamMode.Write);
-        
-        decStream.Write(encryptedBytes, 0, encryptedBytes.Length);
-        decStream.FlushFinalBlock();
+	public string Decrypt(string encryptedText)
+	{
+		var encryptedBytes = Convert.FromBase64String(encryptedText);
 
-        return Encoding.Unicode.GetString(ms.ToArray());
-    }
+		using var ms = new MemoryStream();
+		using var decStream = new CryptoStream(ms, _tripleDes.CreateDecryptor(), CryptoStreamMode.Write);
 
-    public bool IsEncrypted(string? text)
-    {
-        if (string.IsNullOrEmpty(text))
-            return false;
+		decStream.Write(encryptedBytes, 0, encryptedBytes.Length);
+		decStream.FlushFinalBlock();
 
-        try
-        {
-            var decrypted = Decrypt(text);
-            var reEncrypted = Encrypt(decrypted);
-            return text == reEncrypted;
-        }
-        catch
-        {
-            return false;
-        }
-    }
+		return Encoding.Unicode.GetString(ms.ToArray());
+	}
 
-    private static string GetUniqueKeyHash()
-    {
-        var uniqueKey = GetMotherboardId() + GetProcessorId();
-        var hash = SHA1.HashData(Encoding.UTF8.GetBytes(uniqueKey));
-        return Convert.ToHexString(hash).ToLowerInvariant();
-    }
+	public bool IsEncrypted(string? text)
+	{
+		if (string.IsNullOrEmpty(text))
+			return false;
 
-    private static string GetMotherboardId()
-    {
-        try
-        {
-            using var searcher = new ManagementObjectSearcher("SELECT SerialNumber FROM Win32_BaseBoard");
-            foreach (var obj in searcher.Get())
-            {
-                return obj["SerialNumber"]?.ToString() ?? string.Empty;
-            }
-        }
-        catch
-        {
-            // Ignore WMI errors
-        }
-        return string.Empty;
-    }
+		try
+		{
+			var decrypted = Decrypt(text);
+			var reEncrypted = Encrypt(decrypted);
+			return text == reEncrypted;
+		}
+		catch
+		{
+			return false;
+		}
+	}
 
-    private static string GetProcessorId()
-    {
-        try
-        {
-            using var searcher = new ManagementObjectSearcher("SELECT ProcessorId FROM Win32_Processor");
-            foreach (var obj in searcher.Get())
-            {
-                return obj["ProcessorId"]?.ToString() ?? string.Empty;
-            }
-        }
-        catch
-        {
-            // Ignore WMI errors
-        }
-        return string.Empty;
-    }
+	private static string GetUniqueKeyHash()
+	{
+		var uniqueKey = GetMotherboardId() + GetProcessorId();
+		var hash = SHA1.HashData(Encoding.UTF8.GetBytes(uniqueKey));
+		return Convert.ToHexString(hash).ToLowerInvariant();
+	}
 
-    public void Dispose()
-    {
-        if (!_disposed)
-        {
-            _tripleDes.Dispose();
-            _disposed = true;
-        }
-    }
+	private static string GetMotherboardId()
+	{
+		try
+		{
+			using var searcher = new ManagementObjectSearcher("SELECT SerialNumber FROM Win32_BaseBoard");
+			foreach (var obj in searcher.Get())
+			{
+				return obj["SerialNumber"]?.ToString() ?? string.Empty;
+			}
+		}
+		catch
+		{
+			// Ignore WMI errors
+		}
+		return string.Empty;
+	}
+
+	private static string GetProcessorId()
+	{
+		try
+		{
+			using var searcher = new ManagementObjectSearcher("SELECT ProcessorId FROM Win32_Processor");
+			foreach (var obj in searcher.Get())
+			{
+				return obj["ProcessorId"]?.ToString() ?? string.Empty;
+			}
+		}
+		catch
+		{
+			// Ignore WMI errors
+		}
+		return string.Empty;
+	}
+
+	public void Dispose()
+	{
+		if (!_disposed)
+		{
+			_tripleDes.Dispose();
+			_disposed = true;
+		}
+	}
 }

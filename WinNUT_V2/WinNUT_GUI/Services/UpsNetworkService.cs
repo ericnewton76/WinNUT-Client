@@ -23,30 +23,30 @@ public record UpsVariable(string Key, string Value, string? Description);
 /// </summary>
 public class UpsData
 {
-    public string Manufacturer { get; set; } = "Unknown";
-    public string Model { get; set; } = "Unknown";
-    public string Serial { get; set; } = "Unknown";
-    public string Firmware { get; set; } = "Unknown";
-    
-    public double BatteryCharge { get; set; }
-    public double BatteryVoltage { get; set; }
-    public double BatteryRuntimeSeconds { get; set; }
-    public double BatteryCapacity { get; set; }
-    
-    public double InputFrequency { get; set; }
-    public double InputVoltage { get; set; }
-    public double OutputVoltage { get; set; }
-    public double Load { get; set; }
-    public double OutputPower { get; set; }
-    public double InputCurrent { get; set; }
-    
-    public string Status { get; set; } = string.Empty;
-    public bool IsOnline => Status.Contains("OL");
-    public bool IsOnBattery => Status.Contains("OB");
-    public bool IsForcedShutdown => Status.Contains("FSD");
-    public bool IsLowBattery => Status.Contains("LB");
-    public bool IsCharging => Status.Contains("CHRG");
-    public bool IsDischarging => Status.Contains("DISCHRG");
+	public string Manufacturer { get; set; } = "Unknown";
+	public string Model { get; set; } = "Unknown";
+	public string Serial { get; set; } = "Unknown";
+	public string Firmware { get; set; } = "Unknown";
+
+	public double BatteryCharge { get; set; }
+	public double BatteryVoltage { get; set; }
+	public double BatteryRuntimeSeconds { get; set; }
+	public double BatteryCapacity { get; set; }
+
+	public double InputFrequency { get; set; }
+	public double InputVoltage { get; set; }
+	public double OutputVoltage { get; set; }
+	public double Load { get; set; }
+	public double OutputPower { get; set; }
+	public double InputCurrent { get; set; }
+
+	public string Status { get; set; } = string.Empty;
+	public bool IsOnline => Status.Contains("OL");
+	public bool IsOnBattery => Status.Contains("OB");
+	public bool IsForcedShutdown => Status.Contains("FSD");
+	public bool IsLowBattery => Status.Contains("LB");
+	public bool IsCharging => Status.Contains("CHRG");
+	public bool IsDischarging => Status.Contains("DISCHRG");
 }
 
 /// <summary>
@@ -54,31 +54,31 @@ public class UpsData
 /// </summary>
 public enum NutResponse
 {
-    Ok,
-    Var,
-    AccessDenied,
-    UnknownUps,
-    VarNotSupported,
-    CmdNotSupported,
-    InvalidArgument,
-    InstCmdFailed,
-    SetFailed,
-    ReadOnly,
-    TooLong,
-    FeatureNotSupported,
-    FeatureNotConfigured,
-    AlreadySslMode,
-    DriverNotConnected,
-    DataStale,
-    AlreadyLoggedIn,
-    InvalidPassword,
-    AlreadySetPassword,
-    InvalidUsername,
-    AlreadySetUsername,
-    UsernameRequired,
-    PasswordRequired,
-    UnknownCommand,
-    InvalidValue
+	Ok,
+	Var,
+	AccessDenied,
+	UnknownUps,
+	VarNotSupported,
+	CmdNotSupported,
+	InvalidArgument,
+	InstCmdFailed,
+	SetFailed,
+	ReadOnly,
+	TooLong,
+	FeatureNotSupported,
+	FeatureNotConfigured,
+	AlreadySslMode,
+	DriverNotConnected,
+	DataStale,
+	AlreadyLoggedIn,
+	InvalidPassword,
+	AlreadySetPassword,
+	InvalidUsername,
+	AlreadySetUsername,
+	UsernameRequired,
+	PasswordRequired,
+	UnknownCommand,
+	InvalidValue
 }
 
 /// <summary>
@@ -86,578 +86,578 @@ public enum NutResponse
 /// </summary>
 public class UpsNetworkService : IDisposable
 {
-    private static readonly Logger Log = LogManager.GetCurrentClassLogger();
-    private static readonly CultureInfo InvariantCulture = CultureInfo.InvariantCulture;
-    private const double CosPhi = 0.6;
+	private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+	private static readonly CultureInfo InvariantCulture = CultureInfo.InvariantCulture;
+	private const double CosPhi = 0.6;
 
-    private TcpClient? _tcpClient;
-    private NetworkStream? _networkStream;
-    private StreamReader? _reader;
-    private StreamWriter? _writer;
-    
-    private System.Timers.Timer? _pollingTimer;
-    private System.Timers.Timer? _reconnectTimer;
-    
-    private bool _disposed;
-    private bool _isReconnecting;
-    private int _retryCount;
-    private double _frequencyFallback;
+	private TcpClient? _tcpClient;
+	private NetworkStream? _networkStream;
+	private StreamReader? _reader;
+	private StreamWriter? _writer;
 
-    // Connection settings
-    public string Host { get; set; } = string.Empty;
-    public int Port { get; set; } = 3493;
-    public string UpsName { get; set; } = string.Empty;
-    public int PollingIntervalMs { get; set; } = 5000;
-    public string? Login { get; set; }
-    public string? Password { get; set; }
-    public bool AutoReconnect { get; set; }
-    public int MaxRetries { get; set; } = 30;
-    
-    // Power thresholds
-    public int BatteryLimitPercent { get; set; } = 30;
-    public int BackupLimitSeconds { get; set; } = 120;
-    public bool FollowFsd { get; set; }
-    public int DefaultFrequencyHz { get; set; } = 50;
+	private System.Timers.Timer? _pollingTimer;
+	private System.Timers.Timer? _reconnectTimer;
 
-    // Current state
-    public bool IsConnected { get; private set; }
-    public UpsData CurrentData { get; } = new();
-    public int RetryCount => _retryCount;
+	private bool _disposed;
+	private bool _isReconnecting;
+	private int _retryCount;
+	private double _frequencyFallback;
 
-    // Events
-    public event EventHandler? Connected;
-    public event EventHandler? Disconnected;
-    public event EventHandler? ConnectionLost;
-    public event EventHandler? DataUpdated;
-    public event EventHandler? RetryAttempt;
-    public event EventHandler? UnknownUps;
-    public event EventHandler? InvalidCredentials;
-    public event EventHandler? ShutdownCondition;
-    public event EventHandler? ShutdownCancelled;
+	// Connection settings
+	public string Host { get; set; } = string.Empty;
+	public int Port { get; set; } = 3493;
+	public string UpsName { get; set; } = string.Empty;
+	public int PollingIntervalMs { get; set; } = 5000;
+	public string? Login { get; set; }
+	public string? Password { get; set; }
+	public bool AutoReconnect { get; set; }
+	public int MaxRetries { get; set; } = 30;
 
-    private bool _shutdownInProgress;
+	// Power thresholds
+	public int BatteryLimitPercent { get; set; } = 30;
+	public int BackupLimitSeconds { get; set; } = 120;
+	public bool FollowFsd { get; set; }
+	public int DefaultFrequencyHz { get; set; } = 50;
 
-    public async Task ConnectAsync(CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrEmpty(Host) || Port == 0 || string.IsNullOrEmpty(UpsName))
-        {
-            throw new InvalidOperationException("Host, Port, and UpsName must be configured before connecting.");
-        }
+	// Current state
+	public bool IsConnected { get; private set; }
+	public UpsData CurrentData { get; } = new();
+	public int RetryCount => _retryCount;
 
-        try
-        {
-            Log.Debug("Connecting to NUT server at {Host}:{Port}", Host, Port);
-            
-            _tcpClient = new TcpClient();
-            await _tcpClient.ConnectAsync(Host, Port, cancellationToken);
-            
-            _networkStream = _tcpClient.GetStream();
-            _reader = new StreamReader(_networkStream);
-            _writer = new StreamWriter(_networkStream) { AutoFlush = true };
+	// Events
+	public event EventHandler? Connected;
+	public event EventHandler? Disconnected;
+	public event EventHandler? ConnectionLost;
+	public event EventHandler? DataUpdated;
+	public event EventHandler? RetryAttempt;
+	public event EventHandler? UnknownUps;
+	public event EventHandler? InvalidCredentials;
+	public event EventHandler? ShutdownCondition;
+	public event EventHandler? ShutdownCancelled;
 
-            // Authenticate if credentials provided
-            if (!string.IsNullOrEmpty(Login) && !string.IsNullOrEmpty(Password))
-            {
-                if (!await AuthenticateAsync(cancellationToken))
-                {
-                    throw new UnauthorizedAccessException("Authentication failed.");
-                }
-            }
+	private bool _shutdownInProgress;
 
-            IsConnected = true;
-            
-            // Get UPS product info
-            await GetUpsProductInfoAsync(cancellationToken);
-            
-            // Start polling timer
-            StartPollingTimer();
-            
-            _isReconnecting = false;
-            _retryCount = 0;
-            
-            Log.Info("Connected to NUT server at {Host}:{Port}, UPS: {UpsName}", Host, Port, UpsName);
-            Connected?.Invoke(this, EventArgs.Empty);
-            
-            // Get initial data
-            await RetrieveUpsDataAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to connect to NUT server");
-            await HandleConnectionErrorAsync(ex);
-            throw;
-        }
-    }
+	public async Task ConnectAsync(CancellationToken cancellationToken = default)
+	{
+		if (string.IsNullOrEmpty(Host) || Port == 0 || string.IsNullOrEmpty(UpsName))
+		{
+			throw new InvalidOperationException("Host, Port, and UpsName must be configured before connecting.");
+		}
 
-    private async Task<bool> AuthenticateAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            Log.Debug("Authenticating with username: {Login}", Login);
-            
-            // Send username
-            await SendCommandAsync($"USERNAME {Login}", cancellationToken);
-            var response = await ReadResponseAsync(cancellationToken);
-            var result = ParseResponse(response);
-            
-            if (result != NutResponse.Ok)
-            {
-                if (result == NutResponse.InvalidUsername)
-                {
-                    InvalidCredentials?.Invoke(this, EventArgs.Empty);
-                }
-                Log.Error("Username authentication failed: {Response}", response);
-                return false;
-            }
+		try
+		{
+			Log.Debug("Connecting to NUT server at {Host}:{Port}", Host, Port);
 
-            // Send password
-            await SendCommandAsync($"PASSWORD {Password}", cancellationToken);
-            response = await ReadResponseAsync(cancellationToken);
-            result = ParseResponse(response);
-            
-            if (result != NutResponse.Ok)
-            {
-                if (result == NutResponse.InvalidPassword)
-                {
-                    InvalidCredentials?.Invoke(this, EventArgs.Empty);
-                }
-                Log.Error("Password authentication failed: {Response}", response);
-                return false;
-            }
+			_tcpClient = new TcpClient();
+			await _tcpClient.ConnectAsync(Host, Port, cancellationToken);
 
-            Log.Debug("Authentication successful");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Authentication error");
-            return false;
-        }
-    }
+			_networkStream = _tcpClient.GetStream();
+			_reader = new StreamReader(_networkStream);
+			_writer = new StreamWriter(_networkStream) { AutoFlush = true };
 
-    public async Task DisconnectAsync(bool force = false)
-    {
-        Log.Debug("Disconnecting from NUT server (force={Force})", force);
-        
-        StopTimers();
-        
-        IsConnected = false;
-        
-        try
-        {
-            _writer?.Close();
-            _reader?.Close();
-            _networkStream?.Close();
-            _tcpClient?.Close();
-        }
-        catch (Exception ex)
-        {
-            Log.Debug(ex, "Error during disconnect cleanup");
-        }
-        
-        _writer = null;
-        _reader = null;
-        _networkStream = null;
-        _tcpClient = null;
-        
-        // Reset UPS info
-        CurrentData.Manufacturer = "Unknown";
-        CurrentData.Model = "Unknown";
-        CurrentData.Serial = "Unknown";
-        CurrentData.Firmware = "Unknown";
-        
-        if (!force && !_isReconnecting)
-        {
-            Disconnected?.Invoke(this, EventArgs.Empty);
-        }
-        
-        Log.Info("Disconnected from NUT server");
-    }
+			// Authenticate if credentials provided
+			if (!string.IsNullOrEmpty(Login) && !string.IsNullOrEmpty(Password))
+			{
+				if (!await AuthenticateAsync(cancellationToken))
+				{
+					throw new UnauthorizedAccessException("Authentication failed.");
+				}
+			}
 
-    public async Task<string?> GetVariableAsync(string variableName, string? fallback = null, CancellationToken cancellationToken = default)
-    {
-        if (!IsConnected || _writer == null || _reader == null)
-        {
-            return fallback;
-        }
+			IsConnected = true;
 
-        try
-        {
-            await SendCommandAsync($"GET VAR {UpsName} {variableName}", cancellationToken);
-            var response = await ReadResponseAsync(cancellationToken);
-            var result = ParseResponse(response);
+			// Get UPS product info
+			await GetUpsProductInfoAsync(cancellationToken);
 
-            return result switch
-            {
-                NutResponse.Ok => ExtractValue(response),
-                NutResponse.VarNotSupported when fallback != null => fallback,
-                NutResponse.UnknownUps => throw new InvalidOperationException($"Unknown UPS: {UpsName}"),
-                NutResponse.DataStale => throw new InvalidOperationException($"Data stale for {variableName}"),
-                _ => fallback
-            };
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error getting variable {Variable}", variableName);
-            return fallback;
-        }
-    }
+			// Start polling timer
+			StartPollingTimer();
 
-    public async Task<List<UpsVariable>> ListVariablesAsync(CancellationToken cancellationToken = default)
-    {
-        var variables = new List<UpsVariable>();
-        
-        if (!IsConnected || _writer == null || _reader == null)
-        {
-            return variables;
-        }
+			_isReconnecting = false;
+			_retryCount = 0;
 
-        try
-        {
-            await SendCommandAsync($"LIST VAR {UpsName}", cancellationToken);
-            
-            // Read all lines until END LIST
-            var timeout = DateTime.Now.AddSeconds(30);
-            while (DateTime.Now < timeout)
-            {
-                var line = await _reader.ReadLineAsync(cancellationToken);
-                if (line == null || line.Contains("END LIST"))
-                    break;
-                
-                if (line.StartsWith("VAR"))
-                {
-                    var parts = line.Split('"');
-                    if (parts.Length >= 2)
-                    {
-                        var keyParts = parts[0].Split(' ');
-                        if (keyParts.Length >= 3)
-                        {
-                            var key = keyParts[2];
-                            var value = parts[1];
-                            var description = await GetVariableDescriptionAsync(key, cancellationToken);
-                            variables.Add(new UpsVariable(key, value, description));
-                        }
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error listing variables");
-        }
+			Log.Info("Connected to NUT server at {Host}:{Port}, UPS: {UpsName}", Host, Port, UpsName);
+			Connected?.Invoke(this, EventArgs.Empty);
 
-        return variables;
-    }
+			// Get initial data
+			await RetrieveUpsDataAsync(cancellationToken);
+		}
+		catch (Exception ex)
+		{
+			Log.Error(ex, "Failed to connect to NUT server");
+			await HandleConnectionErrorAsync(ex);
+			throw;
+		}
+	}
 
-    private async Task<string?> GetVariableDescriptionAsync(string variableName, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await SendCommandAsync($"GET DESC {UpsName} {variableName}", cancellationToken);
-            var response = await ReadResponseAsync(cancellationToken);
-            return ParseResponse(response) == NutResponse.Ok ? ExtractValue(response) : null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
+	private async Task<bool> AuthenticateAsync(CancellationToken cancellationToken)
+	{
+		try
+		{
+			Log.Debug("Authenticating with username: {Login}", Login);
 
-    private async Task GetUpsProductInfoAsync(CancellationToken cancellationToken)
-    {
-        CurrentData.Manufacturer = await GetVariableAsync("ups.mfr", "Unknown", cancellationToken) ?? "Unknown";
-        CurrentData.Model = await GetVariableAsync("ups.model", "Unknown", cancellationToken) ?? "Unknown";
-        CurrentData.Serial = await GetVariableAsync("ups.serial", "Unknown", cancellationToken) ?? "Unknown";
-        CurrentData.Firmware = await GetVariableAsync("ups.firmware", "Unknown", cancellationToken) ?? "Unknown";
-    }
+			// Send username
+			await SendCommandAsync($"USERNAME {Login}", cancellationToken);
+			var response = await ReadResponseAsync(cancellationToken);
+			var result = ParseResponse(response);
 
-    private async Task RetrieveUpsDataAsync(CancellationToken cancellationToken = default)
-    {
-        if (!IsConnected || _isReconnecting)
-            return;
+			if (result != NutResponse.Ok)
+			{
+				if (result == NutResponse.InvalidUsername)
+				{
+					InvalidCredentials?.Invoke(this, EventArgs.Empty);
+				}
+				Log.Error("Username authentication failed: {Response}", response);
+				return false;
+			}
 
-        try
-        {
-            Log.Debug("Retrieving UPS data");
-            
-            // Get frequency fallback if not set
-            if (_frequencyFallback == 0)
-            {
-                var nominalFreq = await GetVariableAsync("output.frequency.nominal", DefaultFrequencyHz.ToString(), cancellationToken);
-                _frequencyFallback = ParseDouble(nominalFreq, DefaultFrequencyHz);
-            }
+			// Send password
+			await SendCommandAsync($"PASSWORD {Password}", cancellationToken);
+			response = await ReadResponseAsync(cancellationToken);
+			result = ParseResponse(response);
 
-            // Retrieve all UPS variables
-            CurrentData.BatteryCharge = ParseDouble(await GetVariableAsync("battery.charge", "255", cancellationToken), 255);
-            CurrentData.BatteryVoltage = ParseDouble(await GetVariableAsync("battery.voltage", "12", cancellationToken), 12);
-            CurrentData.BatteryRuntimeSeconds = ParseDouble(await GetVariableAsync("battery.runtime", "86400", cancellationToken), 86400);
-            CurrentData.BatteryCapacity = ParseDouble(await GetVariableAsync("battery.capacity", "7", cancellationToken), 7);
-            
-            var inputFreq = await GetVariableAsync("input.frequency", null, cancellationToken);
-            if (inputFreq == null)
-            {
-                var outputFreq = await GetVariableAsync("output.frequency", _frequencyFallback.ToString(InvariantCulture), cancellationToken);
-                CurrentData.InputFrequency = ParseDouble(outputFreq, _frequencyFallback);
-            }
-            else
-            {
-                CurrentData.InputFrequency = ParseDouble(inputFreq, _frequencyFallback);
-            }
-            
-            CurrentData.InputVoltage = ParseDouble(await GetVariableAsync("input.voltage", "220", cancellationToken), 220);
-            CurrentData.OutputVoltage = ParseDouble(await GetVariableAsync("output.voltage", CurrentData.InputVoltage.ToString(InvariantCulture), cancellationToken), CurrentData.InputVoltage);
-            CurrentData.Load = ParseDouble(await GetVariableAsync("ups.load", "100", cancellationToken), 100);
-            CurrentData.Status = await GetVariableAsync("ups.status", "OL", cancellationToken) ?? "OL";
-            
-            // Calculate output power
-            var nominalPower = ParseDouble(await GetVariableAsync("ups.realpower.nominal", "0", cancellationToken), 0);
-            if (nominalPower == 0)
-            {
-                CurrentData.InputCurrent = ParseDouble(await GetVariableAsync("ups.current.nominal", "1", cancellationToken), 1);
-                CurrentData.OutputPower = Math.Round(CurrentData.InputVoltage * 0.95 * CurrentData.InputCurrent * CosPhi);
-            }
-            else
-            {
-                CurrentData.OutputPower = Math.Round(nominalPower * (CurrentData.Load / 100));
-            }
+			if (result != NutResponse.Ok)
+			{
+				if (result == NutResponse.InvalidPassword)
+				{
+					InvalidCredentials?.Invoke(this, EventArgs.Empty);
+				}
+				Log.Error("Password authentication failed: {Response}", response);
+				return false;
+			}
 
-            // Calculate battery charge if not reported
-            if (CurrentData.BatteryCharge >= 255)
-            {
-                var nBatt = Math.Floor(CurrentData.BatteryVoltage / 12);
-                CurrentData.BatteryCharge = Math.Floor((CurrentData.BatteryVoltage - (11.6 * nBatt)) / (0.02 * nBatt));
-            }
+			Log.Debug("Authentication successful");
+			return true;
+		}
+		catch (Exception ex)
+		{
+			Log.Error(ex, "Authentication error");
+			return false;
+		}
+	}
 
-            // Calculate runtime if not reported
-            if (CurrentData.BatteryRuntimeSeconds >= 86400)
-            {
-                var load = CurrentData.Load != 0 ? CurrentData.Load : 0.1;
-                var powerDivider = load switch
-                {
-                    >= 76 => 0.4,
-                    >= 51 => 0.3,
-                    _ => 0.5
-                };
-                var battInstantCurrent = (CurrentData.OutputVoltage * load) / (CurrentData.BatteryVoltage * 100);
-                CurrentData.BatteryRuntimeSeconds = Math.Floor(CurrentData.BatteryCapacity * 0.6 * CurrentData.BatteryCharge * (1 - powerDivider) * 3600 / (battInstantCurrent * 100));
-            }
+	public async Task DisconnectAsync(bool force = false)
+	{
+		Log.Debug("Disconnecting from NUT server (force={Force})", force);
 
-            // Process status flags
-            ProcessUpsStatus();
-            
-            DataUpdated?.Invoke(this, EventArgs.Empty);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error retrieving UPS data");
-            await HandleConnectionErrorAsync(ex);
-        }
-    }
+		StopTimers();
 
-    private void ProcessUpsStatus()
-    {
-        var statusParts = CurrentData.Status.Trim().Split(' ');
-        
-        foreach (var state in statusParts)
-        {
-            switch (state)
-            {
-                case "OL":
-                    // On line - cancel any pending shutdown
-                    if (_shutdownInProgress)
-                    {
-                        Log.Info("Power restored - cancelling shutdown");
-                        _shutdownInProgress = false;
-                        ShutdownCancelled?.Invoke(this, EventArgs.Empty);
-                    }
-                    break;
-                    
-                case "OB":
-                    // On battery - check thresholds
-                    if (!_shutdownInProgress && 
-                        (CurrentData.BatteryCharge <= BatteryLimitPercent || 
-                         CurrentData.BatteryRuntimeSeconds <= BackupLimitSeconds))
-                    {
-                        Log.Warn("Shutdown condition reached: Battery={Charge}%, Runtime={Runtime}s", 
-                            CurrentData.BatteryCharge, CurrentData.BatteryRuntimeSeconds);
-                        _shutdownInProgress = true;
-                        ShutdownCondition?.Invoke(this, EventArgs.Empty);
-                    }
-                    break;
-                    
-                case "FSD":
-                    // Forced shutdown from server
-                    if (FollowFsd && !_shutdownInProgress)
-                    {
-                        Log.Warn("Forced shutdown commanded by NUT server");
-                        _shutdownInProgress = true;
-                        ShutdownCondition?.Invoke(this, EventArgs.Empty);
-                    }
-                    break;
-                    
-                case "LB":
-                    Log.Info("UPS reports low battery");
-                    break;
-                case "HB":
-                    Log.Info("UPS reports high battery");
-                    break;
-                case "CHRG":
-                    Log.Debug("Battery is charging");
-                    break;
-                case "DISCHRG":
-                    Log.Debug("Battery is discharging");
-                    break;
-                case "BYPASS":
-                    Log.Warn("UPS bypass circuit is active - no battery protection");
-                    break;
-                case "CAL":
-                    Log.Info("UPS is performing runtime calibration");
-                    break;
-                case "OFF":
-                    Log.Warn("UPS is offline and not supplying power");
-                    break;
-                case "OVER":
-                    Log.Warn("UPS is overloaded");
-                    break;
-                case "TRIM":
-                    Log.Debug("UPS is trimming incoming voltage");
-                    break;
-                case "BOOST":
-                    Log.Debug("UPS is boosting incoming voltage");
-                    break;
-            }
-        }
-    }
+		IsConnected = false;
 
-    private async Task HandleConnectionErrorAsync(Exception ex)
-    {
-        await DisconnectAsync(true);
-        
-        if (AutoReconnect && _retryCount < MaxRetries)
-        {
-            _isReconnecting = true;
-            ConnectionLost?.Invoke(this, EventArgs.Empty);
-            StartReconnectTimer();
-        }
-        else
-        {
-            Disconnected?.Invoke(this, EventArgs.Empty);
-        }
-    }
+		try
+		{
+			_writer?.Close();
+			_reader?.Close();
+			_networkStream?.Close();
+			_tcpClient?.Close();
+		}
+		catch (Exception ex)
+		{
+			Log.Debug(ex, "Error during disconnect cleanup");
+		}
 
-    private void StartPollingTimer()
-    {
-        StopTimers();
-        
-        _pollingTimer = new System.Timers.Timer(PollingIntervalMs);
-        _pollingTimer.Elapsed += async (s, e) => await RetrieveUpsDataAsync();
-        _pollingTimer.AutoReset = true;
-        _pollingTimer.Start();
-    }
+		_writer = null;
+		_reader = null;
+		_networkStream = null;
+		_tcpClient = null;
 
-    private void StartReconnectTimer()
-    {
-        _reconnectTimer?.Stop();
-        _reconnectTimer = new System.Timers.Timer(30000); // 30 seconds
-        _reconnectTimer.Elapsed += async (s, e) => await AttemptReconnectAsync();
-        _reconnectTimer.AutoReset = false;
-        _reconnectTimer.Start();
-    }
+		// Reset UPS info
+		CurrentData.Manufacturer = "Unknown";
+		CurrentData.Model = "Unknown";
+		CurrentData.Serial = "Unknown";
+		CurrentData.Firmware = "Unknown";
 
-    private async Task AttemptReconnectAsync()
-    {
-        _retryCount++;
-        
-        if (_retryCount > MaxRetries)
-        {
-            Log.Error("Max reconnection attempts reached");
-            _isReconnecting = false;
-            Disconnected?.Invoke(this, EventArgs.Empty);
-            return;
-        }
+		if (!force && !_isReconnecting)
+		{
+			Disconnected?.Invoke(this, EventArgs.Empty);
+		}
 
-        Log.Info("Reconnection attempt {Retry}/{Max}", _retryCount, MaxRetries);
-        RetryAttempt?.Invoke(this, EventArgs.Empty);
+		Log.Info("Disconnected from NUT server");
+	}
 
-        try
-        {
-            await ConnectAsync();
-        }
-        catch
-        {
-            if (_retryCount < MaxRetries)
-            {
-                StartReconnectTimer();
-            }
-        }
-    }
+	public async Task<string?> GetVariableAsync(string variableName, string? fallback = null, CancellationToken cancellationToken = default)
+	{
+		if (!IsConnected || _writer == null || _reader == null)
+		{
+			return fallback;
+		}
 
-    private void StopTimers()
-    {
-        _pollingTimer?.Stop();
-        _pollingTimer?.Dispose();
-        _pollingTimer = null;
-        
-        _reconnectTimer?.Stop();
-        _reconnectTimer?.Dispose();
-        _reconnectTimer = null;
-    }
+		try
+		{
+			await SendCommandAsync($"GET VAR {UpsName} {variableName}", cancellationToken);
+			var response = await ReadResponseAsync(cancellationToken);
+			var result = ParseResponse(response);
 
-    private async Task SendCommandAsync(string command, CancellationToken cancellationToken)
-    {
-        if (_writer == null)
-            throw new InvalidOperationException("Not connected");
-            
-        await _writer.WriteLineAsync(command.AsMemory(), cancellationToken);
-    }
+			return result switch
+			{
+				NutResponse.Ok => ExtractValue(response),
+				NutResponse.VarNotSupported when fallback != null => fallback,
+				NutResponse.UnknownUps => throw new InvalidOperationException($"Unknown UPS: {UpsName}"),
+				NutResponse.DataStale => throw new InvalidOperationException($"Data stale for {variableName}"),
+				_ => fallback
+			};
+		}
+		catch (Exception ex)
+		{
+			Log.Error(ex, "Error getting variable {Variable}", variableName);
+			return fallback;
+		}
+	}
 
-    private async Task<string> ReadResponseAsync(CancellationToken cancellationToken)
-    {
-        if (_reader == null)
-            throw new InvalidOperationException("Not connected");
-            
-        return await _reader.ReadLineAsync(cancellationToken) ?? string.Empty;
-    }
+	public async Task<List<UpsVariable>> ListVariablesAsync(CancellationToken cancellationToken = default)
+	{
+		var variables = new List<UpsVariable>();
 
-    private static NutResponse ParseResponse(string response)
-    {
-        var sanitized = response.Replace("-", string.Empty);
-        var parts = sanitized.Split(' ');
+		if (!IsConnected || _writer == null || _reader == null)
+		{
+			return variables;
+		}
 
-        return parts[0] switch
-        {
-            "OK" or "VAR" or "BEGIN" or "DESC" => NutResponse.Ok,
-            "ERR" when parts.Length > 1 && Enum.TryParse<NutResponse>(parts[1], true, out var result) => result,
-            _ => throw new InvalidOperationException($"Unknown NUT response: {response}")
-        };
-    }
+		try
+		{
+			await SendCommandAsync($"LIST VAR {UpsName}", cancellationToken);
 
-    private static string? ExtractValue(string response)
-    {
-        var parts = response.Split('"');
-        return parts.Length >= 2 ? parts[1].Trim() : null;
-    }
+			// Read all lines until END LIST
+			var timeout = DateTime.Now.AddSeconds(30);
+			while (DateTime.Now < timeout)
+			{
+				var line = await _reader.ReadLineAsync(cancellationToken);
+				if (line == null || line.Contains("END LIST"))
+					break;
 
-    private static double ParseDouble(string? value, double fallback)
-    {
-        if (string.IsNullOrEmpty(value))
-            return fallback;
-        return double.TryParse(value, NumberStyles.Any, InvariantCulture, out var result) ? result : fallback;
-    }
+				if (line.StartsWith("VAR"))
+				{
+					var parts = line.Split('"');
+					if (parts.Length >= 2)
+					{
+						var keyParts = parts[0].Split(' ');
+						if (keyParts.Length >= 3)
+						{
+							var key = keyParts[2];
+							var value = parts[1];
+							var description = await GetVariableDescriptionAsync(key, cancellationToken);
+							variables.Add(new UpsVariable(key, value, description));
+						}
+					}
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			Log.Error(ex, "Error listing variables");
+		}
 
-    public void Dispose()
-    {
-        if (_disposed)
-            return;
-            
-        _disposed = true;
-        StopTimers();
-        
-        _writer?.Dispose();
-        _reader?.Dispose();
-        _networkStream?.Dispose();
-        _tcpClient?.Dispose();
-        
-        GC.SuppressFinalize(this);
-    }
+		return variables;
+	}
+
+	private async Task<string?> GetVariableDescriptionAsync(string variableName, CancellationToken cancellationToken)
+	{
+		try
+		{
+			await SendCommandAsync($"GET DESC {UpsName} {variableName}", cancellationToken);
+			var response = await ReadResponseAsync(cancellationToken);
+			return ParseResponse(response) == NutResponse.Ok ? ExtractValue(response) : null;
+		}
+		catch
+		{
+			return null;
+		}
+	}
+
+	private async Task GetUpsProductInfoAsync(CancellationToken cancellationToken)
+	{
+		CurrentData.Manufacturer = await GetVariableAsync("ups.mfr", "Unknown", cancellationToken) ?? "Unknown";
+		CurrentData.Model = await GetVariableAsync("ups.model", "Unknown", cancellationToken) ?? "Unknown";
+		CurrentData.Serial = await GetVariableAsync("ups.serial", "Unknown", cancellationToken) ?? "Unknown";
+		CurrentData.Firmware = await GetVariableAsync("ups.firmware", "Unknown", cancellationToken) ?? "Unknown";
+	}
+
+	private async Task RetrieveUpsDataAsync(CancellationToken cancellationToken = default)
+	{
+		if (!IsConnected || _isReconnecting)
+			return;
+
+		try
+		{
+			Log.Debug("Retrieving UPS data");
+
+			// Get frequency fallback if not set
+			if (_frequencyFallback == 0)
+			{
+				var nominalFreq = await GetVariableAsync("output.frequency.nominal", DefaultFrequencyHz.ToString(), cancellationToken);
+				_frequencyFallback = ParseDouble(nominalFreq, DefaultFrequencyHz);
+			}
+
+			// Retrieve all UPS variables
+			CurrentData.BatteryCharge = ParseDouble(await GetVariableAsync("battery.charge", "255", cancellationToken), 255);
+			CurrentData.BatteryVoltage = ParseDouble(await GetVariableAsync("battery.voltage", "12", cancellationToken), 12);
+			CurrentData.BatteryRuntimeSeconds = ParseDouble(await GetVariableAsync("battery.runtime", "86400", cancellationToken), 86400);
+			CurrentData.BatteryCapacity = ParseDouble(await GetVariableAsync("battery.capacity", "7", cancellationToken), 7);
+
+			var inputFreq = await GetVariableAsync("input.frequency", null, cancellationToken);
+			if (inputFreq == null)
+			{
+				var outputFreq = await GetVariableAsync("output.frequency", _frequencyFallback.ToString(InvariantCulture), cancellationToken);
+				CurrentData.InputFrequency = ParseDouble(outputFreq, _frequencyFallback);
+			}
+			else
+			{
+				CurrentData.InputFrequency = ParseDouble(inputFreq, _frequencyFallback);
+			}
+
+			CurrentData.InputVoltage = ParseDouble(await GetVariableAsync("input.voltage", "220", cancellationToken), 220);
+			CurrentData.OutputVoltage = ParseDouble(await GetVariableAsync("output.voltage", CurrentData.InputVoltage.ToString(InvariantCulture), cancellationToken), CurrentData.InputVoltage);
+			CurrentData.Load = ParseDouble(await GetVariableAsync("ups.load", "100", cancellationToken), 100);
+			CurrentData.Status = await GetVariableAsync("ups.status", "OL", cancellationToken) ?? "OL";
+
+			// Calculate output power
+			var nominalPower = ParseDouble(await GetVariableAsync("ups.realpower.nominal", "0", cancellationToken), 0);
+			if (nominalPower == 0)
+			{
+				CurrentData.InputCurrent = ParseDouble(await GetVariableAsync("ups.current.nominal", "1", cancellationToken), 1);
+				CurrentData.OutputPower = Math.Round(CurrentData.InputVoltage * 0.95 * CurrentData.InputCurrent * CosPhi);
+			}
+			else
+			{
+				CurrentData.OutputPower = Math.Round(nominalPower * (CurrentData.Load / 100));
+			}
+
+			// Calculate battery charge if not reported
+			if (CurrentData.BatteryCharge >= 255)
+			{
+				var nBatt = Math.Floor(CurrentData.BatteryVoltage / 12);
+				CurrentData.BatteryCharge = Math.Floor((CurrentData.BatteryVoltage - (11.6 * nBatt)) / (0.02 * nBatt));
+			}
+
+			// Calculate runtime if not reported
+			if (CurrentData.BatteryRuntimeSeconds >= 86400)
+			{
+				var load = CurrentData.Load != 0 ? CurrentData.Load : 0.1;
+				var powerDivider = load switch
+				{
+					>= 76 => 0.4,
+					>= 51 => 0.3,
+					_ => 0.5
+				};
+				var battInstantCurrent = (CurrentData.OutputVoltage * load) / (CurrentData.BatteryVoltage * 100);
+				CurrentData.BatteryRuntimeSeconds = Math.Floor(CurrentData.BatteryCapacity * 0.6 * CurrentData.BatteryCharge * (1 - powerDivider) * 3600 / (battInstantCurrent * 100));
+			}
+
+			// Process status flags
+			ProcessUpsStatus();
+
+			DataUpdated?.Invoke(this, EventArgs.Empty);
+		}
+		catch (Exception ex)
+		{
+			Log.Error(ex, "Error retrieving UPS data");
+			await HandleConnectionErrorAsync(ex);
+		}
+	}
+
+	private void ProcessUpsStatus()
+	{
+		var statusParts = CurrentData.Status.Trim().Split(' ');
+
+		foreach (var state in statusParts)
+		{
+			switch (state)
+			{
+				case "OL":
+					// On line - cancel any pending shutdown
+					if (_shutdownInProgress)
+					{
+						Log.Info("Power restored - cancelling shutdown");
+						_shutdownInProgress = false;
+						ShutdownCancelled?.Invoke(this, EventArgs.Empty);
+					}
+					break;
+
+				case "OB":
+					// On battery - check thresholds
+					if (!_shutdownInProgress &&
+						(CurrentData.BatteryCharge <= BatteryLimitPercent ||
+						 CurrentData.BatteryRuntimeSeconds <= BackupLimitSeconds))
+					{
+						Log.Warn("Shutdown condition reached: Battery={Charge}%, Runtime={Runtime}s",
+							CurrentData.BatteryCharge, CurrentData.BatteryRuntimeSeconds);
+						_shutdownInProgress = true;
+						ShutdownCondition?.Invoke(this, EventArgs.Empty);
+					}
+					break;
+
+				case "FSD":
+					// Forced shutdown from server
+					if (FollowFsd && !_shutdownInProgress)
+					{
+						Log.Warn("Forced shutdown commanded by NUT server");
+						_shutdownInProgress = true;
+						ShutdownCondition?.Invoke(this, EventArgs.Empty);
+					}
+					break;
+
+				case "LB":
+					Log.Info("UPS reports low battery");
+					break;
+				case "HB":
+					Log.Info("UPS reports high battery");
+					break;
+				case "CHRG":
+					Log.Debug("Battery is charging");
+					break;
+				case "DISCHRG":
+					Log.Debug("Battery is discharging");
+					break;
+				case "BYPASS":
+					Log.Warn("UPS bypass circuit is active - no battery protection");
+					break;
+				case "CAL":
+					Log.Info("UPS is performing runtime calibration");
+					break;
+				case "OFF":
+					Log.Warn("UPS is offline and not supplying power");
+					break;
+				case "OVER":
+					Log.Warn("UPS is overloaded");
+					break;
+				case "TRIM":
+					Log.Debug("UPS is trimming incoming voltage");
+					break;
+				case "BOOST":
+					Log.Debug("UPS is boosting incoming voltage");
+					break;
+			}
+		}
+	}
+
+	private async Task HandleConnectionErrorAsync(Exception ex)
+	{
+		await DisconnectAsync(true);
+
+		if (AutoReconnect && _retryCount < MaxRetries)
+		{
+			_isReconnecting = true;
+			ConnectionLost?.Invoke(this, EventArgs.Empty);
+			StartReconnectTimer();
+		}
+		else
+		{
+			Disconnected?.Invoke(this, EventArgs.Empty);
+		}
+	}
+
+	private void StartPollingTimer()
+	{
+		StopTimers();
+
+		_pollingTimer = new System.Timers.Timer(PollingIntervalMs);
+		_pollingTimer.Elapsed += async (s, e) => await RetrieveUpsDataAsync();
+		_pollingTimer.AutoReset = true;
+		_pollingTimer.Start();
+	}
+
+	private void StartReconnectTimer()
+	{
+		_reconnectTimer?.Stop();
+		_reconnectTimer = new System.Timers.Timer(30000); // 30 seconds
+		_reconnectTimer.Elapsed += async (s, e) => await AttemptReconnectAsync();
+		_reconnectTimer.AutoReset = false;
+		_reconnectTimer.Start();
+	}
+
+	private async Task AttemptReconnectAsync()
+	{
+		_retryCount++;
+
+		if (_retryCount > MaxRetries)
+		{
+			Log.Error("Max reconnection attempts reached");
+			_isReconnecting = false;
+			Disconnected?.Invoke(this, EventArgs.Empty);
+			return;
+		}
+
+		Log.Info("Reconnection attempt {Retry}/{Max}", _retryCount, MaxRetries);
+		RetryAttempt?.Invoke(this, EventArgs.Empty);
+
+		try
+		{
+			await ConnectAsync();
+		}
+		catch
+		{
+			if (_retryCount < MaxRetries)
+			{
+				StartReconnectTimer();
+			}
+		}
+	}
+
+	private void StopTimers()
+	{
+		_pollingTimer?.Stop();
+		_pollingTimer?.Dispose();
+		_pollingTimer = null;
+
+		_reconnectTimer?.Stop();
+		_reconnectTimer?.Dispose();
+		_reconnectTimer = null;
+	}
+
+	private async Task SendCommandAsync(string command, CancellationToken cancellationToken)
+	{
+		if (_writer == null)
+			throw new InvalidOperationException("Not connected");
+
+		await _writer.WriteLineAsync(command.AsMemory(), cancellationToken);
+	}
+
+	private async Task<string> ReadResponseAsync(CancellationToken cancellationToken)
+	{
+		if (_reader == null)
+			throw new InvalidOperationException("Not connected");
+
+		return await _reader.ReadLineAsync(cancellationToken) ?? string.Empty;
+	}
+
+	private static NutResponse ParseResponse(string response)
+	{
+		var sanitized = response.Replace("-", string.Empty);
+		var parts = sanitized.Split(' ');
+
+		return parts[0] switch
+		{
+			"OK" or "VAR" or "BEGIN" or "DESC" => NutResponse.Ok,
+			"ERR" when parts.Length > 1 && Enum.TryParse<NutResponse>(parts[1], true, out var result) => result,
+			_ => throw new InvalidOperationException($"Unknown NUT response: {response}")
+		};
+	}
+
+	private static string? ExtractValue(string response)
+	{
+		var parts = response.Split('"');
+		return parts.Length >= 2 ? parts[1].Trim() : null;
+	}
+
+	private static double ParseDouble(string? value, double fallback)
+	{
+		if (string.IsNullOrEmpty(value))
+			return fallback;
+		return double.TryParse(value, NumberStyles.Any, InvariantCulture, out var result) ? result : fallback;
+	}
+
+	public void Dispose()
+	{
+		if (_disposed)
+			return;
+
+		_disposed = true;
+		StopTimers();
+
+		_writer?.Dispose();
+		_reader?.Dispose();
+		_networkStream?.Dispose();
+		_tcpClient?.Dispose();
+
+		GC.SuppressFinalize(this);
+	}
 }
