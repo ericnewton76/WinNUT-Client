@@ -1,0 +1,323 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Data.Core;
+using Avalonia.Data.Core.Plugins;
+using System.Linq;
+using Avalonia.Markup.Xaml;
+using NLog;
+using WinNUT_Client.Services;
+using WinNUT_Client.ViewModels;
+using WinNUT_Client.Views;
+
+namespace WinNUT_Client;
+
+public partial class App : Application
+{
+	private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+
+	public static SettingsService Settings { get; private set; } = null!;
+	public static UpsNetworkService UpsNetwork { get; private set; } = null!;
+	public static NotificationService? Notifications { get; private set; }
+
+	private TrayIcon? _trayIcon;
+
+	public override void Initialize()
+	{
+		AvaloniaXamlLoader.Load(this);
+
+		// Get tray icon references after XAML load
+		var trayIcons = TrayIcon.GetIcons(this);
+		_trayIcon = trayIcons?.FirstOrDefault();
+		if (_trayIcon != null)
+		{
+			_trayIcon.Clicked += TrayIcon_Clicked;
+		}
+	}
+
+	public override void OnFrameworkInitializationCompleted()
+	{
+		if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+		{
+			// Set up global exception handling
+			AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+			TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+
+			// Initialize globals
+			WinNutGlobals.Initialize();
+
+			// Parse command line for custom config path
+			var configPath = SettingsService.ParseConfigPathFromArgs(desktop.Args ?? Array.Empty<string>());
+			Settings = configPath != null ? new SettingsService(configPath) : new SettingsService();
+			Settings.Load();
+
+			// Apply settings to logging (NLog.config handles initialization)
+			LoggingSetup.SetFileLoggingEnabled(Settings.Settings.Logging.EnableFileLogging);
+			LoggingSetup.SetLogLevel(Settings.Settings.Logging.LogLevel);
+
+			// Initialize UPS network service
+			UpsNetwork = new UpsNetworkService();
+			ApplySettingsToUpsNetwork();
+
+			// Subscribe to UPS events for tray updates
+			UpsNetwork.Connected += OnUpsConnectedForTray;
+			UpsNetwork.Disconnected += OnUpsDisconnectedForTray;
+			UpsNetwork.DataUpdated += OnUpsDataUpdatedForTray;
+
+			// Initialize notifications if supported
+			if (NotificationService.IsSupported)
+			{
+				Notifications = new NotificationService();
+			}
+
+			// Avoid duplicate validations from both Avalonia and the CommunityToolkit.
+			DisableAvaloniaDataAnnotationValidation();
+
+			var mainWindow = new MainWindow
+			{
+				DataContext = new MainWindowViewModel(),
+			};
+			desktop.MainWindow = mainWindow;
+
+			// Start minimized if configured
+			if (Settings.Settings.Appearance.MinimizeOnStart)
+			{
+				if (Settings.Settings.Appearance.MinimizeToTray)
+				{
+					// Don't show window at all, just tray icon
+					mainWindow.ShowInTaskbar = false;
+					mainWindow.WindowState = WindowState.Minimized;
+					mainWindow.Hide();
+				}
+				else
+				{
+					mainWindow.WindowState = WindowState.Minimized;
+				}
+			}
+
+			desktop.ShutdownRequested += OnShutdownRequested;
+
+			// Auto-connect on startup if enabled
+			if (Settings.Settings.Connection.AutoConnectOnStartup)
+			{
+				_ = AutoConnectAsync();
+			}
+		}
+
+		base.OnFrameworkInitializationCompleted();
+	}
+
+	private async Task AutoConnectAsync()
+	{
+		// Small delay to let UI initialize
+		await Task.Delay(500);
+
+		// Update status via ViewModel
+		if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+			desktop.MainWindow?.DataContext is MainWindowViewModel vm)
+		{
+			Avalonia.Threading.Dispatcher.UIThread.Post(() => vm.ConnectionStatus = "Connecting...");
+		}
+
+		try
+		{
+			await UpsNetwork.ConnectAsync();
+		}
+		catch (Exception ex)
+		{
+			Log.Error($"Auto-connect failed: {ex.Message}");
+
+			if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop2 &&
+				desktop2.MainWindow?.DataContext is MainWindowViewModel vm2)
+			{
+				Avalonia.Threading.Dispatcher.UIThread.Post(() => 
+					vm2.ConnectionStatus = $"Connection failed: {ex.Message}");
+			}
+		}
+	}
+
+	private void TrayIcon_Clicked(object? sender, EventArgs e)
+	{
+		ShowMainWindow();
+	}
+
+	private void TrayIcon_ShowWindow(object? sender, EventArgs e)
+	{
+		ShowMainWindow();
+	}
+
+	private async void TrayIcon_Connect(object? sender, EventArgs e)
+	{
+		if (!UpsNetwork.IsConnected)
+		{
+			// Update status via ViewModel
+			if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+				desktop.MainWindow?.DataContext is MainWindowViewModel vm)
+			{
+				Avalonia.Threading.Dispatcher.UIThread.Post(() => vm.ConnectionStatus = "Connecting...");
+			}
+
+			try
+			{
+				await UpsNetwork.ConnectAsync();
+			}
+			catch (Exception ex)
+			{
+				Log.Error($"Connection failed: {ex.Message}");
+
+				if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop2 &&
+					desktop2.MainWindow?.DataContext is MainWindowViewModel vm2)
+				{
+					Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+						vm2.ConnectionStatus = $"Connection failed: {ex.Message}");
+				}
+			}
+		}
+	}
+
+	private async void TrayIcon_Disconnect(object? sender, EventArgs e)
+	{
+		if (UpsNetwork.IsConnected)
+		{
+			await UpsNetwork.DisconnectAsync();
+		}
+	}
+
+	private void TrayIcon_Preferences(object? sender, EventArgs e)
+	{
+		ShowMainWindow();
+		// The MainWindow will handle showing preferences
+		if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+			desktop.MainWindow?.DataContext is MainWindowViewModel vm)
+		{
+			vm.ShowPreferencesCommand.Execute(null);
+		}
+	}
+
+	private void TrayIcon_Exit(object? sender, EventArgs e)
+	{
+		if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+		{
+			desktop.Shutdown();
+		}
+	}
+
+	private void ShowMainWindow()
+	{
+		if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+		{
+			var window = desktop.MainWindow;
+			if (window != null)
+			{
+				window.ShowInTaskbar = true;
+				window.Show();
+				window.WindowState = WindowState.Normal;
+				window.Activate();
+			}
+		}
+	}
+
+	private void OnUpsConnectedForTray(object? sender, EventArgs e)
+	{
+		Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTrayStatus);
+	}
+
+	private void OnUpsDisconnectedForTray(object? sender, EventArgs e)
+	{
+		Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTrayStatus);
+	}
+
+	private void OnUpsDataUpdatedForTray(object? sender, EventArgs e)
+	{
+		Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTrayStatus);
+	}
+
+	private void UpdateTrayStatus()
+	{
+		if (_trayIcon == null) return;
+
+		if (UpsNetwork.IsConnected)
+		{
+			var charge = UpsNetwork.CurrentData.BatteryCharge;
+			var status = UpsNetwork.CurrentData.Status;
+			_trayIcon.ToolTipText = $"WinNUT-Client - {status} ({charge:F0}%)";
+		}
+		else
+		{
+			_trayIcon.ToolTipText = "WinNUT-Client - Not Connected";
+		}
+	}
+
+	public static void ApplySettingsToUpsNetwork()
+	{
+		var conn = Settings.Settings.Connection;
+		var power = Settings.Settings.Power;
+
+		UpsNetwork.Host = conn.ServerAddress;
+		UpsNetwork.Port = conn.Port;
+		UpsNetwork.UpsName = conn.UpsName;
+		UpsNetwork.PollingIntervalMs = conn.PollingIntervalSeconds * 1000;
+		UpsNetwork.Login = conn.Login;
+		UpsNetwork.AutoReconnect = conn.AutoReconnect;
+		UpsNetwork.BatteryLimitPercent = power.ShutdownLimitBatteryCharge;
+		UpsNetwork.BackupLimitSeconds = power.ShutdownLimitUpsRemainTimeSeconds;
+		UpsNetwork.FollowFsd = power.FollowFsd;
+		UpsNetwork.DefaultFrequencyHz = Settings.Settings.Calibration.FrequencySupply == FrequencyType.Hz50 ? 50 : 60;
+
+		// Decrypt password if present
+		if (!string.IsNullOrEmpty(conn.EncryptedPassword))
+		{
+			using var crypto = new CryptographyService();
+			try
+			{
+				UpsNetwork.Password = crypto.Decrypt(conn.EncryptedPassword);
+			}
+			catch
+			{
+				// Password decryption failed, leave empty
+				UpsNetwork.Password = null;
+			}
+		}
+	}
+
+	private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
+	{
+		// Cleanup
+		UpsNetwork?.Dispose();
+		LoggingSetup.Shutdown();
+	}
+
+	private void DisableAvaloniaDataAnnotationValidation()
+	{
+		// Get an array of plugins to remove
+		var dataValidationPluginsToRemove =
+			BindingPlugins.DataValidators.OfType<DataAnnotationsValidationPlugin>().ToArray();
+
+		// remove each entry found
+		foreach (var plugin in dataValidationPluginsToRemove)
+		{
+			BindingPlugins.DataValidators.Remove(plugin);
+		}
+	}
+
+	private void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
+	{
+		var exception = e.ExceptionObject as Exception;
+		Log.Error($"Unhandled exception: {exception?.Message}");
+		Log.Error(exception?.StackTrace ?? "No stack trace");
+
+		// Try to save settings before crash
+		try
+		{
+			Settings?.Save();
+		}
+		catch { }
+	}
+
+	private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+	{
+		Log.Error($"Unobserved task exception: {e.Exception.Message}");
+		Log.Error(e.Exception.StackTrace ?? "No stack trace");
+		e.SetObserved(); // Prevent app crash
+	}
+}

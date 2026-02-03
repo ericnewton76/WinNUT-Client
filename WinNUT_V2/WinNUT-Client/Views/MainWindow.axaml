@@ -1,0 +1,229 @@
+<Window xmlns="https://github.com/avaloniaui"
+				xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+				xmlns:vm="using:WinNUT_Client.ViewModels"
+				xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+				xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+				mc:Ignorable="d" d:DesignWidth="650" d:DesignHeight="420"
+				x:Class="WinNUT_Client.Views.MainWindow"
+				x:DataType="vm:MainWindowViewModel"
+				Icon="/Assets/WinNut.ico"
+				Title="WinNUT-Client"
+				Width="650" Height="420"
+				MinWidth="550" MinHeight="380">
+
+	<Design.DataContext>
+		<vm:MainWindowViewModel/>
+	</Design.DataContext>
+
+	<DockPanel>
+		<!-- Menu Bar -->
+		<Menu DockPanel.Dock="Top">
+			<MenuItem Header="_File">
+				<MenuItem Header="_Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnected}">
+					<MenuItem.Icon>
+						<PathIcon Data="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6Z" />
+					</MenuItem.Icon>
+				</MenuItem>
+				<MenuItem Header="_Disconnect" Command="{Binding DisconnectCommand}" IsEnabled="{Binding IsConnected}" />
+				<Separator />
+				<MenuItem Header="E_xit" Command="{Binding ExitCommand}" InputGesture="Alt+F4" />
+			</MenuItem>
+			<MenuItem Header="_View">
+				<MenuItem Header="_UPS Variables" Command="{Binding ShowUpsVariablesCommand}" IsEnabled="{Binding IsConnected}" />
+				<Separator />
+				<MenuItem Header="View _Log File" Command="{Binding ViewLogFileCommand}" />
+			</MenuItem>
+			<MenuItem Header="_Tools">
+				<MenuItem Header="_Preferences" Command="{Binding ShowPreferencesCommand}" InputGesture="Ctrl+P" />
+			</MenuItem>
+			<MenuItem Header="_Help">
+				<MenuItem Header="_About" Command="{Binding ShowAboutCommand}" />
+				<MenuItem Header="_GitHub Repository" Command="{Binding OpenGitHubCommand}" />
+			</MenuItem>
+		</Menu>
+
+		<!-- Status Bar at bottom -->
+		<Border DockPanel.Dock="Bottom" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}" Padding="5">
+			<Grid ColumnDefinitions="Auto,*,Auto">
+				<!-- Freshness indicator -->
+				<Ellipse Grid.Column="0" Width="12" Height="12" Fill="{Binding DataFreshnessColor}" 
+								 Margin="0,0,8,0" ToolTip.Tip="{Binding DataFreshnessTooltip}" />
+				<TextBlock Grid.Column="1" Text="{Binding ConnectionStatus}" VerticalAlignment="Center" />
+				<TextBlock Grid.Column="2" Text="{Binding UpsStatus}" FontWeight="Bold" Margin="10,0,0,0" VerticalAlignment="Center" />
+			</Grid>
+		</Border>
+
+		<!-- Toolbar -->
+		<Border DockPanel.Dock="Top" Padding="5" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+			<StackPanel Orientation="Horizontal" Spacing="5">
+				<Button Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnected}" />
+				<Button Content="Disconnect" Command="{Binding DisconnectCommand}" IsEnabled="{Binding IsConnected}" />
+				<Separator Width="1" Margin="5,0" />
+				<Button Content="Preferences" Command="{Binding ShowPreferencesCommand}" />
+			</StackPanel>
+		</Border>
+
+		<!-- Main content area with optional sidebar -->
+		<Grid ColumnDefinitions="Auto,*">
+			
+			<!-- UPS Sidebar (visible when multiple UPS) -->
+			<Border Grid.Column="0" 
+							IsVisible="{Binding ShowSidebar}"
+							Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+							Width="200" Padding="5">
+				<ScrollViewer VerticalScrollBarVisibility="Auto">
+					<ItemsControl ItemsSource="{Binding UpsList}">
+						<ItemsControl.ItemTemplate>
+							<DataTemplate DataType="vm:UpsSummary">
+								<Border Margin="5" Padding="10" CornerRadius="5"
+												Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+												BorderThickness="2"
+												BorderBrush="{Binding StatusColor}">
+									<StackPanel Spacing="5">
+										<!-- UPS Name -->
+										<TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13" />
+										<TextBlock Text="{Binding Host}" FontSize="11" 
+															 Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+										
+										<!-- Status indicator -->
+										<StackPanel Orientation="Horizontal" Spacing="5" Margin="0,5,0,0">
+											<Ellipse Width="10" Height="10" Fill="{Binding StatusColor}" VerticalAlignment="Center" />
+											<TextBlock Text="{Binding StatusText}" FontSize="11" VerticalAlignment="Center" />
+										</StackPanel>
+										
+										<!-- Battery bar -->
+										<Grid ColumnDefinitions="*,Auto" Margin="0,3,0,0">
+											<ProgressBar Grid.Column="0" Value="{Binding BatteryCharge}" Maximum="100" Height="6" CornerRadius="3" />
+											<TextBlock Grid.Column="1" Text="{Binding BatteryCharge, StringFormat={}{0:F0}%}" 
+																 FontSize="10" Margin="5,0,0,0" VerticalAlignment="Center" />
+										</Grid>
+									</StackPanel>
+								</Border>
+							</DataTemplate>
+						</ItemsControl.ItemTemplate>
+					</ItemsControl>
+				</ScrollViewer>
+			</Border>
+
+			<!-- Main content - UPS Card -->
+			<ScrollViewer Grid.Column="1" Margin="10" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+				<!-- UPS Card -->
+				<Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" 
+								CornerRadius="8" Padding="15" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" BorderThickness="1">
+					<StackPanel Spacing="15">
+						
+						<!-- Device Info Panel -->
+						<Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}" CornerRadius="5" Padding="12">
+							<Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto">
+								<!-- UPS Icon and Name -->
+								<PathIcon Grid.Row="0" Grid.Column="0" Grid.RowSpan="2" 
+													Data="M16,20H8V6H16M16.67,4H15V2H9V4H7.33A1.33,1.33 0 0,0 6,5.33V20.67C6,21.4 6.6,22 7.33,22H16.67A1.33,1.33 0 0,0 18,20.67V5.33C18,4.6 17.4,4 16.67,4Z"
+													Width="32" Height="32" Margin="0,0,15,0" VerticalAlignment="Center" />
+							
+							<StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+								<TextBlock Text="{Binding UpsManufacturer}" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+								<TextBlock Text="{Binding UpsModel}" FontSize="18" VerticalAlignment="Center" />
+							</StackPanel>
+							
+							<TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding UpsSerial, StringFormat=S/N: {0}}" 
+												 Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" FontSize="12" />
+							
+							<!-- Status Badge -->
+							<Border Grid.Row="0" Grid.Column="2" Grid.RowSpan="2" CornerRadius="4" Padding="10,5" 
+											Background="{Binding StatusBadgeColor}" VerticalAlignment="Center">
+								<TextBlock Text="{Binding UpsStatusDisplay}" FontWeight="Bold" Foreground="White" />
+							</Border>
+						</Grid>
+					</Border>
+
+					<!-- Battery and Power Panels side by side -->
+					<Grid ColumnDefinitions="*,*" ColumnSpacing="15">
+						
+						<!-- Battery Panel -->
+						<Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundAltHighBrush}" CornerRadius="5" Padding="12">
+							<StackPanel Spacing="10">
+								<StackPanel Orientation="Horizontal" Spacing="8">
+									<PathIcon Data="M16,20H8V6H16M16.67,4H15V2H9V4H7.33A1.33,1.33 0 0,0 6,5.33V20.67C6,21.4 6.6,22 7.33,22H16.67A1.33,1.33 0 0,0 18,20.67V5.33C18,4.6 17.4,4 16.67,4Z"
+														Width="18" Height="18" />
+									<TextBlock Text="Battery" FontWeight="Bold" FontSize="14" />
+								</StackPanel>
+								
+								<Separator />
+								
+								<!-- Charge with progress bar -->
+								<StackPanel Spacing="4">
+									<Grid ColumnDefinitions="*,Auto">
+										<TextBlock Grid.Column="0" Text="Charge" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+										<TextBlock Grid.Column="1" Text="{Binding BatteryCharge, StringFormat={}{0:F1}%}" FontWeight="SemiBold" />
+									</Grid>
+									<ProgressBar Value="{Binding BatteryCharge}" Maximum="100" Height="8" CornerRadius="4" />
+								</StackPanel>
+								
+								<!-- Voltage -->
+								<Grid ColumnDefinitions="*,Auto">
+									<TextBlock Grid.Column="0" Text="Voltage" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+									<TextBlock Grid.Column="1" Text="{Binding BatteryVoltage, StringFormat={}{0:F1}V}" FontWeight="SemiBold" />
+								</Grid>
+								
+								<!-- Runtime -->
+								<Grid ColumnDefinitions="*,Auto">
+									<TextBlock Grid.Column="0" Text="Runtime" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+									<TextBlock Grid.Column="1" Text="{Binding BatteryRuntimeDisplay}" FontWeight="SemiBold" />
+								</Grid>
+							</StackPanel>
+						</Border>
+
+						<!-- Power Panel -->
+						<Border Grid.Column="1" Background="{DynamicResource SystemControlBackgroundAltHighBrush}" CornerRadius="5" Padding="12">
+							<StackPanel Spacing="10">
+								<StackPanel Orientation="Horizontal" Spacing="8">
+									<PathIcon Data="M11,21H5V3H11V21M19,21H13V3H19V21M7,5V19H9V5H7M15,5V19H17V5H15Z"
+														Width="18" Height="18" />
+									<TextBlock Text="Power" FontWeight="Bold" FontSize="14" />
+								</StackPanel>
+								
+								<Separator />
+								
+								<!-- Load with progress bar -->
+								<StackPanel Spacing="4">
+									<Grid ColumnDefinitions="*,Auto">
+										<TextBlock Grid.Column="0" Text="Load" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+										<TextBlock Grid.Column="1" Text="{Binding Load, StringFormat={}{0:F1}%}" FontWeight="SemiBold" />
+									</Grid>
+									<ProgressBar Value="{Binding Load}" Maximum="100" Height="8" CornerRadius="4" />
+								</StackPanel>
+								
+								<!-- Input Voltage -->
+								<Grid ColumnDefinitions="*,Auto">
+									<TextBlock Grid.Column="0" Text="Input" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+									<TextBlock Grid.Column="1" Text="{Binding InputVoltage, StringFormat={}{0:F1}V}" FontWeight="SemiBold" />
+								</Grid>
+								
+								<!-- Output Voltage -->
+								<Grid ColumnDefinitions="*,Auto">
+									<TextBlock Grid.Column="0" Text="Output" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+									<TextBlock Grid.Column="1" Text="{Binding OutputVoltage, StringFormat={}{0:F1}V}" FontWeight="SemiBold" />
+								</Grid>
+								
+								<!-- Frequency -->
+								<Grid ColumnDefinitions="*,Auto">
+									<TextBlock Grid.Column="0" Text="Frequency" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+									<TextBlock Grid.Column="1" Text="{Binding InputFrequency, StringFormat={}{0:F1}Hz}" FontWeight="SemiBold" />
+								</Grid>
+								
+								<!-- Power -->
+								<Grid ColumnDefinitions="*,Auto">
+									<TextBlock Grid.Column="0" Text="Power" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+									<TextBlock Grid.Column="1" Text="{Binding OutputPower, StringFormat={}{0:F0}W}" FontWeight="SemiBold" />
+								</Grid>
+							</StackPanel>
+						</Border>
+					</Grid>
+					
+				</StackPanel>
+			</Border>
+		</ScrollViewer>
+		</Grid>
+	</DockPanel>
+
+</Window>

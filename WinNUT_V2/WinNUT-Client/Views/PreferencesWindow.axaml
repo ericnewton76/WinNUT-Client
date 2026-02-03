@@ -1,0 +1,152 @@
+<Window xmlns="https://github.com/avaloniaui"
+				xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+				xmlns:vm="using:WinNUT_Client.ViewModels"
+				xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+				xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+				mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="550"
+				x:Class="WinNUT_Client.Views.PreferencesWindow"
+				x:DataType="vm:PreferencesViewModel"
+				Icon="/Assets/WinNut.ico"
+				Title="Preferences"
+				Width="500" Height="550"
+				MinWidth="450" MinHeight="500"
+				WindowStartupLocation="CenterOwner"
+				CanResize="False">
+
+	<Design.DataContext>
+		<vm:PreferencesViewModel/>
+	</Design.DataContext>
+
+	<DockPanel Margin="10">
+		<!-- Buttons at bottom -->
+		<StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,10,0,0">
+			<Button Content="Save" Command="{Binding SaveCommand}" Width="80" />
+			<Button Content="Cancel" Command="{Binding CancelCommand}" Width="80" />
+		</StackPanel>
+
+		<!-- Tab Control -->
+		<TabControl>
+			<!-- Connection Tab -->
+			<TabItem Header="Connection">
+				<StackPanel Margin="10" Spacing="10">
+					<Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="10">
+						<TextBlock Grid.Row="0" Grid.Column="0" Text="Server Address:" VerticalAlignment="Center" />
+						<TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ServerAddress}" />
+
+						<TextBlock Grid.Row="1" Grid.Column="0" Text="Port:" VerticalAlignment="Center" />
+						<NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding Port}" Minimum="1" Maximum="65535" Width="100" HorizontalAlignment="Left" />
+
+						<TextBlock Grid.Row="2" Grid.Column="0" Text="UPS Name:" VerticalAlignment="Center" />
+						<TextBox Grid.Row="2" Grid.Column="1" Text="{Binding UpsName}" />
+
+						<TextBlock Grid.Row="3" Grid.Column="0" Text="Poll Interval (s):" VerticalAlignment="Center" />
+						<NumericUpDown Grid.Row="3" Grid.Column="1" Value="{Binding PollingInterval}" Minimum="1" Maximum="60" Width="100" HorizontalAlignment="Left" />
+
+						<TextBlock Grid.Row="4" Grid.Column="0" Text="Login:" VerticalAlignment="Center" />
+						<TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Login}" />
+
+						<TextBlock Grid.Row="5" Grid.Column="0" Text="Password:" VerticalAlignment="Center" />
+						<TextBox Grid.Row="5" Grid.Column="1" Text="{Binding Password}" PasswordChar="●" />
+
+						<CheckBox Grid.Row="6" Grid.Column="1" Content="Auto Reconnect" IsChecked="{Binding AutoReconnect}" />
+						<CheckBox Grid.Row="6" Grid.Column="0" Content="Connect on startup" IsChecked="{Binding AutoConnectOnStartup}" />
+					</Grid>
+				</StackPanel>
+			</TabItem>
+
+			<!-- Appearance Tab -->
+			<TabItem Header="Appearance">
+				<StackPanel Margin="10" Spacing="10">
+					<CheckBox Content="Minimize to system tray" IsChecked="{Binding MinimizeToTray}" />
+					<CheckBox Content="Start minimized" IsChecked="{Binding MinimizeOnStart}" />
+					<CheckBox Content="Close to tray (instead of exit)" IsChecked="{Binding CloseToTray}" />
+					<CheckBox Content="Start with Windows" IsChecked="{Binding StartWithWindows}" />
+				</StackPanel>
+			</TabItem>
+
+			<!-- Power Tab -->
+			<TabItem Header="Power">
+				<StackPanel Margin="10" Spacing="10">
+					<TextBlock Text="Shutdown Conditions" FontWeight="Bold" />
+					<Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto" RowSpacing="10">
+						<TextBlock Grid.Row="0" Grid.Column="0" Text="Battery Charge Limit (%):" VerticalAlignment="Center" />
+						<NumericUpDown Grid.Row="0" Grid.Column="1" Value="{Binding ShutdownBatteryLimit}" Minimum="0" Maximum="100" Width="100" HorizontalAlignment="Left" />
+
+						<TextBlock Grid.Row="1" Grid.Column="0" Text="Runtime Limit (seconds):" VerticalAlignment="Center" />
+						<NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding ShutdownRuntimeLimit}" Minimum="0" Maximum="3600" Width="100" HorizontalAlignment="Left" />
+					</Grid>
+
+					<Separator Margin="0,10" />
+					<TextBlock Text="Shutdown Action" FontWeight="Bold" />
+
+					<Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto" RowSpacing="10">
+						<TextBlock Grid.Row="0" Grid.Column="0" Text="Action Type:" VerticalAlignment="Center" />
+						<ComboBox Grid.Row="0" Grid.Column="1" SelectedIndex="{Binding ShutdownTypeIndex}" Width="150" HorizontalAlignment="Left">
+							<ComboBoxItem Content="Shutdown" />
+							<ComboBoxItem Content="Hibernate" />
+							<ComboBoxItem Content="Suspend" />
+						</ComboBox>
+
+						<TextBlock Grid.Row="1" Grid.Column="0" Text="Delay (seconds):" VerticalAlignment="Center" />
+						<NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding DelayToShutdown}" Minimum="0" Maximum="300" Width="100" HorizontalAlignment="Left" />
+					</Grid>
+
+					<CheckBox Content="Follow NUT server forced shutdown (FSD)" IsChecked="{Binding FollowFsd}" Margin="0,10,0,0" />
+					<CheckBox Content="Immediate stop action (no delay)" IsChecked="{Binding ImmediateStopAction}" />
+				</StackPanel>
+			</TabItem>
+
+			<!-- Calibration Tab -->
+			<TabItem Header="Calibration">
+				<StackPanel Margin="10" Spacing="10">
+					<TextBlock Text="Input Voltage Range" FontWeight="Bold" />
+					<Grid ColumnDefinitions="80,100,80,100" RowDefinitions="Auto" ColumnSpacing="10">
+						<TextBlock Grid.Column="0" Text="Min:" VerticalAlignment="Center" />
+						<NumericUpDown Grid.Column="1" Value="{Binding MinInputVoltage}" Minimum="0" Maximum="500" />
+						<TextBlock Grid.Column="2" Text="Max:" VerticalAlignment="Center" />
+						<NumericUpDown Grid.Column="3" Value="{Binding MaxInputVoltage}" Minimum="0" Maximum="500" />
+					</Grid>
+
+					<TextBlock Text="Output Voltage Range" FontWeight="Bold" Margin="0,10,0,0" />
+					<Grid ColumnDefinitions="80,100,80,100" RowDefinitions="Auto" ColumnSpacing="10">
+						<TextBlock Grid.Column="0" Text="Min:" VerticalAlignment="Center" />
+						<NumericUpDown Grid.Column="1" Value="{Binding MinOutputVoltage}" Minimum="0" Maximum="500" />
+						<TextBlock Grid.Column="2" Text="Max:" VerticalAlignment="Center" />
+						<NumericUpDown Grid.Column="3" Value="{Binding MaxOutputVoltage}" Minimum="0" Maximum="500" />
+					</Grid>
+
+					<TextBlock Text="Load Range (%)" FontWeight="Bold" Margin="0,10,0,0" />
+					<Grid ColumnDefinitions="80,100,80,100" RowDefinitions="Auto" ColumnSpacing="10">
+						<TextBlock Grid.Column="0" Text="Min:" VerticalAlignment="Center" />
+						<NumericUpDown Grid.Column="1" Value="{Binding MinLoad}" Minimum="0" Maximum="100" />
+						<TextBlock Grid.Column="2" Text="Max:" VerticalAlignment="Center" />
+						<NumericUpDown Grid.Column="3" Value="{Binding MaxLoad}" Minimum="0" Maximum="100" />
+					</Grid>
+
+					<TextBlock Text="Frequency" FontWeight="Bold" Margin="0,10,0,0" />
+					<ComboBox SelectedIndex="{Binding FrequencyIndex}" Width="100">
+						<ComboBoxItem Content="50 Hz" />
+						<ComboBoxItem Content="60 Hz" />
+					</ComboBox>
+				</StackPanel>
+			</TabItem>
+
+			<!-- Logging Tab -->
+			<TabItem Header="Logging">
+				<StackPanel Margin="10" Spacing="10">
+					<CheckBox Content="Enable file logging" IsChecked="{Binding EnableFileLogging}" />
+
+					<Grid ColumnDefinitions="80,*" RowDefinitions="Auto" Margin="0,10,0,0">
+						<TextBlock Grid.Column="0" Text="Log Level:" VerticalAlignment="Center" />
+						<ComboBox Grid.Column="1" SelectedIndex="{Binding LogLevelIndex}" Width="120" HorizontalAlignment="Left">
+							<ComboBoxItem Content="Notice" />
+							<ComboBoxItem Content="Warning" />
+							<ComboBoxItem Content="Error" />
+							<ComboBoxItem Content="Debug" />
+						</ComboBox>
+					</Grid>
+				</StackPanel>
+			</TabItem>
+		</TabControl>
+	</DockPanel>
+</Window>
