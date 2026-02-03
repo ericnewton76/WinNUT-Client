@@ -264,8 +264,66 @@ public partial class MainWindowViewModel : ViewModelBase
 
 	private void OnUpsShutdownCondition(object? sender, EventArgs e)
 	{
-		// TODO: Show shutdown dialog or initiate shutdown sequence
 		LoggingService.Warning("Shutdown condition triggered");
+
+		Dispatcher.UIThread.Post(async () =>
+		{
+			var settings = App.Settings.Settings.Power;
+
+			if (settings.ImmediateStopAction)
+			{
+				// Immediate shutdown without dialog
+				PerformShutdown(settings.TypeOfStop);
+				return;
+			}
+
+			// Show countdown dialog
+			var shutdownWindow = new Views.ShutdownWindow(settings.DelayToShutdownSeconds);
+
+			if (Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
+			{
+				await shutdownWindow.ShowDialog(lifetime.MainWindow!);
+
+				if (shutdownWindow.ShutdownConfirmed)
+				{
+					PerformShutdown(settings.TypeOfStop);
+				}
+				else
+				{
+					LoggingService.Notice("Shutdown cancelled by user");
+				}
+			}
+		});
+	}
+
+	private void PerformShutdown(ShutdownType shutdownType)
+	{
+		LoggingService.Warning($"Performing system {shutdownType}");
+
+		App.Notifications?.SendToast("WinNUT-Client", $"System {shutdownType} initiated");
+
+		try
+		{
+			var command = shutdownType switch
+			{
+				ShutdownType.Shutdown => "shutdown /s /t 0",
+				ShutdownType.Hibernate => "shutdown /h",
+				ShutdownType.Suspend => "rundll32.exe powrprof.dll,SetSuspendState 0,1,0",
+				_ => "shutdown /s /t 0"
+			};
+
+			Process.Start(new ProcessStartInfo
+			{
+				FileName = "cmd.exe",
+				Arguments = $"/c {command}",
+				UseShellExecute = false,
+				CreateNoWindow = true
+			});
+		}
+		catch (Exception ex)
+		{
+			LoggingService.Error($"Failed to execute shutdown: {ex.Message}");
+		}
 	}
 
 	private void OnUpsShutdownCancelled(object? sender, EventArgs e)
