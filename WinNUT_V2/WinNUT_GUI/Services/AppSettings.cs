@@ -43,6 +43,7 @@ public class ConnectionSettings
 	public string? EncryptedPassword { get; set; }
 
 	public bool AutoReconnect { get; set; } = false;
+	public bool AutoConnectOnStartup { get; set; } = false;
 }
 
 public class CalibrationSettings

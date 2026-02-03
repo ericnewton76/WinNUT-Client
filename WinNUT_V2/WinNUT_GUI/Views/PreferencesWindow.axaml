@@ -49,6 +49,7 @@
 						<TextBox Grid.Row="5" Grid.Column="1" Text="{Binding Password}" PasswordChar="●" />
 
 						<CheckBox Grid.Row="6" Grid.Column="1" Content="Auto Reconnect" IsChecked="{Binding AutoReconnect}" />
+						<CheckBox Grid.Row="6" Grid.Column="0" Content="Connect on startup" IsChecked="{Binding AutoConnectOnStartup}" />
 					</Grid>
 				</StackPanel>
 			</TabItem>

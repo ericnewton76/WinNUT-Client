@@ -73,9 +73,29 @@ public partial class App : Application
 			};
 
 			desktop.ShutdownRequested += OnShutdownRequested;
+
+			// Auto-connect on startup if enabled
+			if (Settings.Settings.Connection.AutoConnectOnStartup)
+			{
+				_ = AutoConnectAsync();
+			}
 		}
 
 		base.OnFrameworkInitializationCompleted();
+	}
+
+	private async Task AutoConnectAsync()
+	{
+		// Small delay to let UI initialize
+		await Task.Delay(500);
+		try
+		{
+			await UpsNetwork.ConnectAsync();
+		}
+		catch (Exception ex)
+		{
+			LoggingService.Error($"Auto-connect failed: {ex.Message}");
+		}
 	}
 
 	private void TrayIcon_Clicked(object? sender, EventArgs e)

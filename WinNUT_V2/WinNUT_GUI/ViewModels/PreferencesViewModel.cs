@@ -28,6 +28,9 @@ public partial class PreferencesViewModel : ViewModelBase
 	[ObservableProperty]
 	private bool _autoReconnect;
 
+	[ObservableProperty]
+	private bool _autoConnectOnStartup;
+
 	// Appearance settings
 	[ObservableProperty]
 	private bool _minimizeToTray;
@@ -109,6 +112,7 @@ public partial class PreferencesViewModel : ViewModelBase
 		PollingInterval = settings.Connection.PollingIntervalSeconds;
 		Login = settings.Connection.Login ?? string.Empty;
 		AutoReconnect = settings.Connection.AutoReconnect;
+		AutoConnectOnStartup = settings.Connection.AutoConnectOnStartup;
 
 		// Decrypt password
 		if (!string.IsNullOrEmpty(settings.Connection.EncryptedPassword))
@@ -164,6 +168,7 @@ public partial class PreferencesViewModel : ViewModelBase
 		settings.Connection.PollingIntervalSeconds = PollingInterval;
 		settings.Connection.Login = string.IsNullOrEmpty(Login) ? null : Login;
 		settings.Connection.AutoReconnect = AutoReconnect;
+		settings.Connection.AutoConnectOnStartup = AutoConnectOnStartup;
 
 		// Encrypt password
 		if (!string.IsNullOrEmpty(Password))
