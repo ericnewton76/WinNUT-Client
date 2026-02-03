@@ -1,20 +1,96 @@
 <Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:WinNUT_Client.ViewModels"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-        x:Class="WinNUT_Client.Views.MainWindow"
-        x:DataType="vm:MainWindowViewModel"
-        Icon="/Assets/avalonia-logo.ico"
-        Title="WinNUT_Client">
+				xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+				xmlns:vm="using:WinNUT_Client.ViewModels"
+				xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+				xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+				mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="400"
+				x:Class="WinNUT_Client.Views.MainWindow"
+				x:DataType="vm:MainWindowViewModel"
+				Icon="/Assets/WinNut.ico"
+				Title="WinNUT-Client"
+				Width="600" Height="400"
+				MinWidth="500" MinHeight="350">
 
-    <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
-             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
-        <vm:MainWindowViewModel/>
-    </Design.DataContext>
+	<Design.DataContext>
+		<vm:MainWindowViewModel/>
+	</Design.DataContext>
 
-    <TextBlock Text="{Binding Greeting}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+	<DockPanel Margin="10">
+		<!-- Status Bar at bottom -->
+		<Border DockPanel.Dock="Bottom" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}" Padding="5">
+			<TextBlock Text="{Binding ConnectionStatus}" />
+		</Border>
+
+		<!-- Toolbar at top -->
+		<StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="5" Margin="0,0,0,10">
+			<Button Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnected}" />
+			<Button Content="Disconnect" Command="{Binding DisconnectCommand}" IsEnabled="{Binding IsConnected}" />
+		</StackPanel>
+
+		<!-- Main content -->
+		<Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*">
+			<!-- UPS Info Panel -->
+			<Border Grid.Column="0" Grid.Row="0" Grid.RowSpan="2" 
+							Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" 
+							CornerRadius="5" Padding="10" Margin="0,0,5,0">
+				<StackPanel Spacing="8">
+					<TextBlock Text="UPS Information" FontWeight="Bold" FontSize="16" />
+					<Separator />
+					
+					<Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="5">
+						<TextBlock Grid.Row="0" Grid.Column="0" Text="Manufacturer:" Margin="0,0,10,0" />
+						<TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding UpsManufacturer}" />
+						
+						<TextBlock Grid.Row="1" Grid.Column="0" Text="Model:" Margin="0,0,10,0" />
+						<TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding UpsModel}" />
+						
+						<TextBlock Grid.Row="2" Grid.Column="0" Text="Status:" Margin="0,0,10,0" />
+						<TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding UpsStatus}" FontWeight="Bold" />
+					</Grid>
+					
+					<Separator Margin="0,10" />
+					<TextBlock Text="Battery" FontWeight="Bold" />
+					
+					<Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="5">
+						<TextBlock Grid.Row="0" Grid.Column="0" Text="Charge:" Margin="0,0,10,0" />
+						<TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding BatteryCharge, StringFormat={}{0:F1}%}" />
+						
+						<TextBlock Grid.Row="1" Grid.Column="0" Text="Voltage:" Margin="0,0,10,0" />
+						<TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding BatteryVoltage, StringFormat={}{0:F1}V}" />
+						
+						<TextBlock Grid.Row="2" Grid.Column="0" Text="Runtime:" Margin="0,0,10,0" />
+						<TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding BatteryRuntimeMinutes, StringFormat={}{0:F0} min}" />
+					</Grid>
+				</StackPanel>
+			</Border>
+
+			<!-- Power Panel -->
+			<Border Grid.Column="1" Grid.Row="0" Grid.RowSpan="2"
+							Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" 
+							CornerRadius="5" Padding="10" Margin="5,0,0,0">
+				<StackPanel Spacing="8">
+					<TextBlock Text="Power Information" FontWeight="Bold" FontSize="16" />
+					<Separator />
+					
+					<Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="5">
+						<TextBlock Grid.Row="0" Grid.Column="0" Text="Input Voltage:" Margin="0,0,10,0" />
+						<TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding InputVoltage, StringFormat={}{0:F1}V}" />
+						
+						<TextBlock Grid.Row="1" Grid.Column="0" Text="Output Voltage:" Margin="0,0,10,0" />
+						<TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding OutputVoltage, StringFormat={}{0:F1}V}" />
+						
+						<TextBlock Grid.Row="2" Grid.Column="0" Text="Frequency:" Margin="0,0,10,0" />
+						<TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding InputFrequency, StringFormat={}{0:F1}Hz}" />
+						
+						<TextBlock Grid.Row="3" Grid.Column="0" Text="Load:" Margin="0,0,10,0" />
+						<TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Load, StringFormat={}{0:F1}%}" />
+						
+						<TextBlock Grid.Row="4" Grid.Column="0" Text="Power:" Margin="0,0,10,0" />
+						<TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding OutputPower, StringFormat={}{0:F0}W}" />
+					</Grid>
+				</StackPanel>
+			</Border>
+		</Grid>
+	</DockPanel>
 
 </Window>
