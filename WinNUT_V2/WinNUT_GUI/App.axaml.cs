@@ -105,6 +105,14 @@ public partial class App : Application
 	{
 		// Small delay to let UI initialize
 		await Task.Delay(500);
+
+		// Update status via ViewModel
+		if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+			desktop.MainWindow?.DataContext is MainWindowViewModel vm)
+		{
+			Avalonia.Threading.Dispatcher.UIThread.Post(() => vm.ConnectionStatus = "Connecting...");
+		}
+
 		try
 		{
 			await UpsNetwork.ConnectAsync();
@@ -112,6 +120,13 @@ public partial class App : Application
 		catch (Exception ex)
 		{
 			LoggingService.Error($"Auto-connect failed: {ex.Message}");
+
+			if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop2 &&
+				desktop2.MainWindow?.DataContext is MainWindowViewModel vm2)
+			{
+				Avalonia.Threading.Dispatcher.UIThread.Post(() => 
+					vm2.ConnectionStatus = $"Connection failed: {ex.Message}");
+			}
 		}
 	}
 
@@ -129,6 +144,13 @@ public partial class App : Application
 	{
 		if (!UpsNetwork.IsConnected)
 		{
+			// Update status via ViewModel
+			if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+				desktop.MainWindow?.DataContext is MainWindowViewModel vm)
+			{
+				Avalonia.Threading.Dispatcher.UIThread.Post(() => vm.ConnectionStatus = "Connecting...");
+			}
+
 			try
 			{
 				await UpsNetwork.ConnectAsync();
@@ -136,6 +158,13 @@ public partial class App : Application
 			catch (Exception ex)
 			{
 				LoggingService.Error($"Connection failed: {ex.Message}");
+
+				if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop2 &&
+					desktop2.MainWindow?.DataContext is MainWindowViewModel vm2)
+				{
+					Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+						vm2.ConnectionStatus = $"Connection failed: {ex.Message}");
+				}
 			}
 		}
 	}
