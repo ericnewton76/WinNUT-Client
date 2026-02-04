@@ -100,6 +100,9 @@ public partial class MainWindowViewModel : ViewModelBase
 	private IBrush _statusBadgeColor = Brushes.Gray;
 
 	[ObservableProperty]
+	private string _batteryIconPath = "/Assets/1057.ico";  // Default: Battery0 + OnLine
+
+	[ObservableProperty]
 	private double _batteryCharge;
 
 	[ObservableProperty]
@@ -618,6 +621,33 @@ public partial class MainWindowViewModel : ViewModelBase
 			UpsStatusDisplay = data.Status;
 			StatusBadgeColor = Brushes.Gray;
 		}
+
+		// Update battery icon
+		BatteryIconPath = GetBatteryIconPath(data);
+	}
+
+	private static string GetBatteryIconPath(UpsData data)
+	{
+		// Calculate icon index using AppIconIndex bit flags
+		int iconIndex = (int)AppIconIndex.Offset;
+
+		// Battery level
+		if (data.BatteryCharge >= 87.5)
+			iconIndex |= (int)AppIconIndex.Battery100;
+		else if (data.BatteryCharge >= 62.5)
+			iconIndex |= (int)AppIconIndex.Battery75;
+		else if (data.BatteryCharge >= 37.5)
+			iconIndex |= (int)AppIconIndex.Battery50;
+		else if (data.BatteryCharge >= 12.5)
+			iconIndex |= (int)AppIconIndex.Battery25;
+		else
+			iconIndex |= (int)AppIconIndex.Battery0;
+
+		// Online/Offline status
+		if (data.IsOnline)
+			iconIndex |= (int)AppIconIndex.OnLine;
+
+		return $"/Assets/{iconIndex}.ico";
 	}
 
 	private void UpdateBatteryRuntimeDisplay()
