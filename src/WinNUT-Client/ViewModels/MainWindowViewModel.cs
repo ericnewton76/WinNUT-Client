@@ -44,6 +44,9 @@ public partial class UpsSummary : ObservableObject
 	[ObservableProperty]
 	private bool _isSelected;
 
+	[ObservableProperty]
+	private Avalonia.Media.Imaging.Bitmap? _batteryIcon;
+
 	public string DisplayName => string.IsNullOrEmpty(Name) ? Host : Name;
 }
 
@@ -498,7 +501,7 @@ public partial class MainWindowViewModel : ViewModelBase
 				{
 					Id = config.Id,
 					Name = config.DisplayName,
-					Host = $"{config.Host}:{config.Port}"
+					Host = config.Address
 				};
 				UpsList.Add(existing);
 			}
@@ -512,12 +515,14 @@ public partial class MainWindowViewModel : ViewModelBase
 				existing.BatteryCharge = service.CurrentData.BatteryCharge;
 				existing.StatusColor = existing.IsOnline ? Brushes.Green : (existing.IsOnBattery ? Brushes.Orange : Brushes.Gray);
 				existing.StatusText = existing.IsOnline ? "Online" : (existing.IsOnBattery ? "On Battery" : "Unknown");
+				existing.BatteryIcon = LoadBatteryIcon(service.CurrentData);
 			}
 			else
 			{
 				existing.IsConnected = false;
 				existing.StatusColor = Brushes.Gray;
 				existing.StatusText = "Disconnected";
+				existing.BatteryIcon = null;
 			}
 		}
 
