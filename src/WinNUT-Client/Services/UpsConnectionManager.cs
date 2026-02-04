@@ -68,6 +68,7 @@ public class UpsConnectionManager : IDisposable
 	public event EventHandler<Guid>? UpsRemoved;
 	public event EventHandler? ShutdownConditionMet;
 	public event EventHandler? AggregateStatusChanged;
+	public event EventHandler? ConfigsReloaded;
 
 	/// <summary>
 	/// Gets all configured UPS devices.
@@ -358,6 +359,9 @@ public class UpsConnectionManager : IDisposable
 		FollowFsd = settings.Power.FollowFsd;
 
 		Log.Info("Loaded {Count} UPS configurations", settings.Connection.Devices.Count);
+		
+		// Notify listeners that configs have been reloaded
+		ConfigsReloaded?.Invoke(this, EventArgs.Empty);
 	}
 
 	/// <summary>

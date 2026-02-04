@@ -143,6 +143,7 @@ public partial class MainWindowViewModel : ViewModelBase
 			manager.UpsDataUpdated += OnUpsManagerDataUpdated;
 			manager.UpsConnectionLost += OnUpsManagerConnectionLost;
 			manager.ShutdownConditionMet += OnUpsShutdownConditionMet;
+			manager.ConfigsReloaded += OnConfigsReloaded;
 
 			// Initialize sidebar with configured UPS devices
 			InitializeSidebar();
@@ -154,6 +155,82 @@ public partial class MainWindowViewModel : ViewModelBase
 			_upsNetwork.RetryAttempt += OnUpsRetryAttempt;
 			_upsNetwork.ShutdownCancelled += OnUpsShutdownCancelled;
 		}
+	}
+
+	private void OnConfigsReloaded(object? sender, EventArgs e)
+	{
+		Dispatcher.UIThread.Post(RefreshSidebar);
+	}
+
+	private void RefreshSidebar()
+	{
+		var manager = App.UpsManager;
+		if (manager == null) return;
+
+		// Remember selected UPS ID
+		var selectedId = SelectedUps?.Id;
+
+		// Clear and rebuild
+		UpsList.Clear();
+		
+		foreach (var config in manager.Configs)
+		{
+			var service = manager.GetService(config.Id);
+			var summary = new UpsSummary
+			{
+				Id = config.Id,
+				Name = config.DisplayName,
+				Host = config.Address,
+				IsConnected = service?.IsConnected ?? false,
+				StatusColor = service?.IsConnected == true ? Brushes.Green : Brushes.Gray,
+				StatusText = service?.IsConnected == true ? "Connected" : "Not Connected"
+			};
+			
+			// Update with current data if connected
+			if (service?.IsConnected == true && service.CurrentData != null)
+			{
+				var data = service.CurrentData;
+				summary.BatteryCharge = data.BatteryCharge;
+				summary.IsOnline = data.IsOnline;
+				summary.IsOnBattery = data.IsOnBattery;
+				
+				if (data.IsOnBattery)
+				{
+					summary.StatusColor = data.IsLowBattery ? Brushes.Red : Brushes.Orange;
+					summary.StatusText = data.IsLowBattery ? "Low Battery" : "On Battery";
+				}
+				else
+				{
+					summary.StatusColor = Brushes.Green;
+					summary.StatusText = "Online";
+				}
+			}
+			
+			UpsList.Add(summary);
+		}
+
+		// Restore selection or select first
+		UpsSummary? toSelect = null;
+		if (selectedId != null)
+		{
+			toSelect = UpsList.FirstOrDefault(u => u.Id == selectedId);
+		}
+		toSelect ??= UpsList.FirstOrDefault();
+		
+		if (toSelect != null)
+		{
+			toSelect.IsSelected = true;
+			SelectedUps = toSelect;
+			_upsNetwork = manager.GetService(toSelect.Id);
+		}
+		else
+		{
+			SelectedUps = null;
+			_upsNetwork = null;
+		}
+
+		// Show sidebar if more than one UPS
+		ShowSidebar = UpsList.Count > 1;
 	}
 
 	private void InitializeSidebar()
