@@ -659,6 +659,11 @@ public partial class MainWindowViewModel : ViewModelBase
 		if (data.IsOnline)
 			iconIndex |= (int)AppIconIndex.OnLine;
 
+		// Check for dark mode
+		var app = Avalonia.Application.Current;
+		if (app?.ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark)
+			iconIndex |= (int)AppIconIndex.WindowsDark;
+
 		try
 		{
 			var uri = new Uri($"avares://WinNUT-Client/Assets/{iconIndex}.ico");
