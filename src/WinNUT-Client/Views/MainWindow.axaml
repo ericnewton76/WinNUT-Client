@@ -138,14 +138,14 @@
 											 Source="{Binding BatteryIcon}"
 											 Width="32" Height="32" Margin="0,0,15,0" VerticalAlignment="Center" />
 							
-							<!-- Model (primary) -->
-							<TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding UpsModel}" 
+							<!-- Display Name (primary) -->
+							<TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding UpsDisplayName}" 
 												 FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" 
 												 TextTrimming="CharacterEllipsis" Margin="0,0,10,0" />
 							
-							<!-- Manufacturer and S/N (secondary) -->
+							<!-- Manufacturer/Model and S/N (secondary) -->
 							<StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="12">
-								<TextBlock Text="{Binding UpsManufacturer}" 
+								<TextBlock Text="{Binding ManfModelInfo}" 
 													 Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" FontSize="12"
 													 TextTrimming="CharacterEllipsis" />
 								<TextBlock Text="{Binding UpsSerial, StringFormat=S/N: {0}}" 

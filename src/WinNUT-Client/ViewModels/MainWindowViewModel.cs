@@ -85,10 +85,10 @@ public partial class MainWindowViewModel : ViewModelBase
 	private bool _isConnected;
 
 	[ObservableProperty]
-	private string _upsManufacturer = string.Empty;
+	private string _upsDisplayName = string.Empty;
 
 	[ObservableProperty]
-	private string _upsModel = string.Empty;
+	private string _manfModelInfo = string.Empty;
 
 	[ObservableProperty]
 	private string _upsSerial = string.Empty;
@@ -579,8 +579,15 @@ public partial class MainWindowViewModel : ViewModelBase
 
 		Dispatcher.UIThread.Post(() =>
 		{
-			UpsManufacturer = data.Manufacturer;
-			UpsModel = data.Model;
+			// Set display name from selected UPS config
+			UpsDisplayName = SelectedUps?.DisplayName ?? string.Empty;
+			
+			// Combine manufacturer and model for second line
+			var parts = new List<string>();
+			if (!string.IsNullOrEmpty(data.Manufacturer)) parts.Add(data.Manufacturer);
+			if (!string.IsNullOrEmpty(data.Model)) parts.Add(data.Model);
+			ManfModelInfo = string.Join(" ", parts);
+			
 			UpsSerial = data.Serial;
 			UpsStatus = data.Status;
 			BatteryCharge = data.BatteryCharge;
@@ -787,8 +794,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
 	private void ClearUpsData()
 	{
-		UpsManufacturer = string.Empty;
-		UpsModel = string.Empty;
+		UpsDisplayName = string.Empty;
+		ManfModelInfo = string.Empty;
 		UpsStatus = string.Empty;
 		BatteryCharge = 0;
 		BatteryVoltage = 0;
