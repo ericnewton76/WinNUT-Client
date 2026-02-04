@@ -134,12 +134,14 @@
 													Data="M16,20H8V6H16M16.67,4H15V2H9V4H7.33A1.33,1.33 0 0,0 6,5.33V20.67C6,21.4 6.6,22 7.33,22H16.67A1.33,1.33 0 0,0 18,20.67V5.33C18,4.6 17.4,4 16.67,4Z"
 													Width="32" Height="32" Margin="0,0,15,0" VerticalAlignment="Center" />
 							
-							<TextBlock Grid.Row="0" Grid.Column="1" FontSize="18" VerticalAlignment="Center" 
-												 TextTrimming="CharacterEllipsis" Margin="0,0,10,0">
-								<Run Text="{Binding UpsManufacturer}" FontWeight="SemiBold" />
-								<Run Text=" " />
-								<Run Text="{Binding UpsModel}" />
-							</TextBlock>
+							<!-- Manufacturer and Model in separate columns so model trims first -->
+							<Grid Grid.Row="0" Grid.Column="1" ColumnDefinitions="Auto,*" Margin="0,0,10,0">
+								<TextBlock Grid.Column="0" Text="{Binding UpsManufacturer}" FontSize="18" FontWeight="SemiBold" 
+													 VerticalAlignment="Center" TextTrimming="CharacterEllipsis" 
+													 MinWidth="120" MaxWidth="200" Margin="0,0,8,0" />
+								<TextBlock Grid.Column="1" Text="{Binding UpsModel}" FontSize="18" 
+													 VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+							</Grid>
 							
 							<TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding UpsSerial, StringFormat=S/N: {0}}" 
 												 Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" FontSize="12"
