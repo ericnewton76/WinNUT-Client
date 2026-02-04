@@ -65,6 +65,16 @@ public partial class MainWindowViewModel : ViewModelBase
 	[ObservableProperty]
 	private bool _showSidebar;
 
+	/// <summary>
+	/// Recommended window width based on sidebar visibility.
+	/// </summary>
+	public double RecommendedWidth => ShowSidebar ? 750 : 550;
+
+	partial void OnShowSidebarChanged(bool value)
+	{
+		OnPropertyChanged(nameof(RecommendedWidth));
+	}
+
 	[ObservableProperty]
 	private string _connectionStatus = "Not Connected";
 
