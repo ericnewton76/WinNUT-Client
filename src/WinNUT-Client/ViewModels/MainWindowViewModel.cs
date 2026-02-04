@@ -106,6 +106,12 @@ public partial class MainWindowViewModel : ViewModelBase
 	private Avalonia.Media.Imaging.Bitmap? _batteryIcon;
 
 	[ObservableProperty]
+	private Avalonia.Media.Imaging.Bitmap? _batteryStateIcon;
+
+	[ObservableProperty]
+	private bool _hasBatteryStateIcon;
+
+	[ObservableProperty]
 	private double _batteryCharge;
 
 	[ObservableProperty]
@@ -634,8 +640,10 @@ public partial class MainWindowViewModel : ViewModelBase
 			StatusBadgeColor = Brushes.Gray;
 		}
 
-		// Update battery icon
+		// Update battery icons
 		BatteryIcon = LoadBatteryIcon(data);
+		BatteryStateIcon = LoadBatteryStateIcon(data);
+		HasBatteryStateIcon = BatteryStateIcon != null;
 	}
 
 	private static Avalonia.Media.Imaging.Bitmap? LoadBatteryIcon(UpsData data)
@@ -667,6 +675,48 @@ public partial class MainWindowViewModel : ViewModelBase
 		try
 		{
 			var uri = new Uri($"avares://WinNUT-Client/Assets/{iconIndex}.ico");
+			return new Avalonia.Media.Imaging.Bitmap(Avalonia.Platform.AssetLoader.Open(uri));
+		}
+		catch
+		{
+			return null;
+		}
+	}
+
+	private static Avalonia.Media.Imaging.Bitmap? LoadBatteryStateIcon(UpsData data)
+	{
+		const string IconCharged = "Battery_Charged";
+		const string IconCharging = "Battery_Charging";
+		const string IconDischarging = "Battery_Discharging";
+		
+		// Use ups.status flags: CHRG = charging, DISCHRG = discharging
+		// Also check battery.charger.status if available (high-end UPS only)
+		string? iconName = null;
+		
+		// First check battery.charger.status if available
+		var chargerStatus = data.ChargerStatus.ToLowerInvariant();
+		if (chargerStatus == "floating" || chargerStatus == "resting")
+			iconName = IconCharged;
+		else if (chargerStatus == "charging")
+			iconName = IconCharging;
+		else if (chargerStatus == "discharging")
+			iconName = IconDischarging;
+		// Fall back to ups.status flags
+		else if (data.IsCharging)
+			iconName = IconCharging;
+		else if (data.IsDischarging || data.IsOnBattery)
+			iconName = IconDischarging;
+		else if (data.IsOnline && data.BatteryCharge >= 95)
+			iconName = IconCharged;
+		else if (data.IsOnline)
+			iconName = IconCharging;
+
+		if (iconName == null)
+			return null;
+
+		try
+		{
+			var uri = new Uri($"avares://WinNUT-Client/Assets/{iconName}.png");
 			return new Avalonia.Media.Imaging.Bitmap(Avalonia.Platform.AssetLoader.Open(uri));
 		}
 		catch

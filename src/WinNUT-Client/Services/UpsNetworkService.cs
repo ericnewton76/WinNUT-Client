@@ -32,6 +32,7 @@ public class UpsData
 	public double BatteryVoltage { get; set; }
 	public double BatteryRuntimeSeconds { get; set; }
 	public double BatteryCapacity { get; set; }
+	public string ChargerStatus { get; set; } = string.Empty;
 
 	public double InputFrequency { get; set; }
 	public double InputVoltage { get; set; }
@@ -421,6 +422,7 @@ public class UpsNetworkService : IDisposable
 			CurrentData.BatteryVoltage = ParseDouble(await GetVariableInternalAsync("battery.voltage", "12", cancellationToken), 12);
 			CurrentData.BatteryRuntimeSeconds = ParseDouble(await GetVariableInternalAsync("battery.runtime", "86400", cancellationToken), 86400);
 			CurrentData.BatteryCapacity = ParseDouble(await GetVariableInternalAsync("battery.capacity", "7", cancellationToken), 7);
+			CurrentData.ChargerStatus = await GetVariableInternalAsync("battery.charger.status", "", cancellationToken) ?? "";
 
 			var inputFreq = await GetVariableInternalAsync("input.frequency", null, cancellationToken);
 			if (inputFreq == null)
