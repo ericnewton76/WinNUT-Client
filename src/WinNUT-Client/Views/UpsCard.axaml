@@ -1,0 +1,127 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+						 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+						 xmlns:vm="using:WinNUT_Client.ViewModels"
+						 x:Class="WinNUT_Client.Views.UpsCard"
+						 x:DataType="vm:UpsCardViewModel">
+	
+	<!-- UPS Card -->
+	<Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" 
+					CornerRadius="8" Padding="15" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" BorderThickness="1">
+		<StackPanel Spacing="15">
+			
+			<!-- Device Info Panel -->
+			<Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}" CornerRadius="5" Padding="12">
+				<Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto">
+					<!-- UPS Battery Icon -->
+					<Image Grid.Row="0" Grid.Column="0" Grid.RowSpan="2" 
+								 Source="{Binding BatteryIcon}"
+								 Width="32" Height="32" Margin="0,0,15,0" VerticalAlignment="Center" />
+				
+					<!-- Display Name (primary) -->
+					<TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding UpsDisplayName}" 
+										 FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" 
+										 TextTrimming="CharacterEllipsis" Margin="0,0,10,0" />
+					
+					<!-- Manufacturer/Model and S/N (secondary) -->
+					<StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="12">
+						<TextBlock Text="{Binding ManfModelInfo}" 
+											 Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" FontSize="12"
+											 TextTrimming="CharacterEllipsis" />
+						<TextBlock Text="{Binding UpsSerial, StringFormat=S/N: {0}}" 
+											 Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" FontSize="12"
+											 TextTrimming="CharacterEllipsis" IsVisible="{Binding HasSerial}" />
+					</StackPanel>
+					
+					<!-- Status Badge -->
+					<Border Grid.Row="0" Grid.Column="2" Grid.RowSpan="2" CornerRadius="4" Padding="10,5" 
+									Background="{Binding StatusBadgeColor}" VerticalAlignment="Center">
+						<TextBlock Text="{Binding UpsStatusDisplay}" FontWeight="Bold" Foreground="White" />
+					</Border>
+				</Grid>
+			</Border>
+
+			<!-- Battery and Power Panels side by side -->
+			<Grid ColumnDefinitions="*,*" ColumnSpacing="15">
+				
+				<!-- Battery Panel -->
+				<Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundAltHighBrush}" CornerRadius="5" Padding="12">
+					<StackPanel Spacing="10">
+						<StackPanel Orientation="Horizontal" Spacing="8">
+							<Image Source="{Binding BatteryStateIcon}" 
+										 Width="20" Height="20" IsVisible="{Binding HasBatteryStateIcon}" />
+							<PathIcon Data="M16,20H8V6H16M16.67,4H15V2H9V4H7.33A1.33,1.33 0 0,0 6,5.33V20.67C6,21.4 6.6,22 7.33,22H16.67A1.33,1.33 0 0,0 18,20.67V5.33C18,4.6 17.4,4 16.67,4Z"
+													Width="18" Height="18" IsVisible="{Binding !HasBatteryStateIcon}" />
+							<TextBlock Text="Battery" FontWeight="Bold" FontSize="14" />
+						</StackPanel>
+						
+						<Separator />
+						
+						<!-- Charge with progress bar -->
+						<StackPanel Spacing="4">
+							<Grid ColumnDefinitions="*,Auto">
+								<TextBlock Grid.Column="0" Text="Charge" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+								<TextBlock Grid.Column="1" Text="{Binding BatteryCharge, StringFormat={}{0:F1}%}" FontWeight="SemiBold" />
+							</Grid>
+							<ProgressBar Value="{Binding BatteryCharge}" Maximum="100" Height="8" CornerRadius="4" />
+						</StackPanel>
+						
+						<!-- Voltage -->
+						<Grid ColumnDefinitions="*,Auto">
+							<TextBlock Grid.Column="0" Text="Voltage" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+							<TextBlock Grid.Column="1" Text="{Binding BatteryVoltage, StringFormat={}{0:F1}V}" FontWeight="SemiBold" />
+						</Grid>
+						
+						<!-- Runtime -->
+						<Grid ColumnDefinitions="*,Auto">
+							<TextBlock Grid.Column="0" Text="Runtime" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+							<TextBlock Grid.Column="1" Text="{Binding BatteryRuntimeDisplay}" FontWeight="SemiBold" />
+						</Grid>
+					</StackPanel>
+				</Border>
+
+				<!-- Power Panel -->
+				<Border Grid.Column="1" Background="{DynamicResource SystemControlBackgroundAltHighBrush}" CornerRadius="5" Padding="12">
+					<StackPanel Spacing="10">
+						<StackPanel Orientation="Horizontal" Spacing="8">
+							<PathIcon Data="M11,21H5V3H11V21M19,21H13V3H19V21M7,5V19H9V5H7M15,5V19H17V5H15Z"
+												Width="18" Height="18" />
+							<TextBlock Text="Power" FontWeight="Bold" FontSize="14" />
+						</StackPanel>
+						
+						<Separator />
+						
+						<!-- Load with progress bar -->
+						<StackPanel Spacing="4">
+							<Grid ColumnDefinitions="*,Auto">
+								<TextBlock Grid.Column="0" Text="Load" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+								<TextBlock Grid.Column="1" Text="{Binding Load, StringFormat={}{0:F1}%}" FontWeight="SemiBold" />
+							</Grid>
+							<ProgressBar Value="{Binding Load}" Maximum="100" Height="8" CornerRadius="4" />
+						</StackPanel>
+						
+						<!-- Load Watts -->
+						<Grid ColumnDefinitions="*,Auto">
+							<TextBlock Grid.Column="0" Text="Power" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+							<TextBlock Grid.Column="1" Text="{Binding OutputPower, StringFormat={}{0:F0}W}" FontWeight="SemiBold" />
+						</Grid>
+						
+						<!-- Input Voltage -->
+						<Grid ColumnDefinitions="*,Auto">
+							<TextBlock Grid.Column="0" Text="Input" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+							<TextBlock Grid.Column="1" Text="{Binding InputVoltage, StringFormat={}{0:F1}V}" FontWeight="SemiBold" />
+						</Grid>
+						
+						<!-- Output Voltage -->
+						<Grid ColumnDefinitions="*,Auto">
+							<TextBlock Grid.Column="0" Text="Output" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+							<TextBlock Grid.Column="1" Text="{Binding OutputVoltage, StringFormat={}{0:F1}V}" FontWeight="SemiBold" />
+						</Grid>
+						
+					</StackPanel>
+				</Border>
+			</Grid>
+			
+		</StackPanel>
+	</Border>
+	
+</UserControl>

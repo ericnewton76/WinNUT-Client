@@ -10,46 +10,6 @@ using WinNUT_Client.Services;
 
 namespace WinNUT_Client.ViewModels;
 
-/// <summary>
-/// Summary information for a UPS shown in the sidebar.
-/// </summary>
-public partial class UpsSummary : ObservableObject
-{
-	public Guid Id { get; set; }
-
-	[ObservableProperty]
-	private string _name = string.Empty;
-
-	[ObservableProperty]
-	private string _host = string.Empty;
-
-	[ObservableProperty]
-	private bool _isOnline;
-
-	[ObservableProperty]
-	private bool _isOnBattery;
-
-	[ObservableProperty]
-	private bool _isConnected;
-
-	[ObservableProperty]
-	private double _batteryCharge;
-
-	[ObservableProperty]
-	private IBrush _statusColor = Brushes.Gray;
-
-	[ObservableProperty]
-	private string _statusText = "Unknown";
-
-	[ObservableProperty]
-	private bool _isSelected;
-
-	[ObservableProperty]
-	private Avalonia.Media.Imaging.Bitmap? _batteryIcon;
-
-	public string DisplayName => string.IsNullOrEmpty(Name) ? Host : Name;
-}
-
 public partial class MainWindowViewModel : ViewModelBase
 {
 	private static readonly Logger Log = LogManager.GetCurrentClassLogger();
@@ -69,6 +29,11 @@ public partial class MainWindowViewModel : ViewModelBase
 	private bool _showSidebar;
 
 	/// <summary>
+	/// ViewModel for the UPS card display.
+	/// </summary>
+	public UpsCardViewModel UpsCard { get; } = new();
+
+	/// <summary>
 	/// Recommended window width based on sidebar visibility.
 	/// </summary>
 	public double RecommendedWidth => ShowSidebar ? 750 : 550;
@@ -83,60 +48,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
 	[ObservableProperty]
 	private bool _isConnected;
-
-	[ObservableProperty]
-	private string _upsDisplayName = string.Empty;
-
-	[ObservableProperty]
-	private string _manfModelInfo = string.Empty;
-
-	[ObservableProperty]
-	private string _upsSerial = string.Empty;
-
-	[ObservableProperty]
-	private string _upsStatus = string.Empty;
-
-	[ObservableProperty]
-	private string _upsStatusDisplay = "Unknown";
-
-	[ObservableProperty]
-	private IBrush _statusBadgeColor = Brushes.Gray;
-
-	[ObservableProperty]
-	private Avalonia.Media.Imaging.Bitmap? _batteryIcon;
-
-	[ObservableProperty]
-	private Avalonia.Media.Imaging.Bitmap? _batteryStateIcon;
-
-	[ObservableProperty]
-	private bool _hasBatteryStateIcon;
-
-	[ObservableProperty]
-	private double _batteryCharge;
-
-	[ObservableProperty]
-	private double _batteryVoltage;
-
-	[ObservableProperty]
-	private double _batteryRuntimeMinutes;
-
-	[ObservableProperty]
-	private string _batteryRuntimeDisplay = "--";
-
-	[ObservableProperty]
-	private double _inputVoltage;
-
-	[ObservableProperty]
-	private double _outputVoltage;
-
-	[ObservableProperty]
-	private double _inputFrequency;
-
-	[ObservableProperty]
-	private double _load;
-
-	[ObservableProperty]
-	private double _outputPower;
 
 	[ObservableProperty]
 	private int _retryCount;
@@ -521,7 +432,7 @@ public partial class MainWindowViewModel : ViewModelBase
 				existing.BatteryCharge = service.CurrentData.BatteryCharge;
 				existing.StatusColor = existing.IsOnline ? Brushes.Green : (existing.IsOnBattery ? Brushes.Orange : Brushes.Gray);
 				existing.StatusText = existing.IsOnline ? "Online" : (existing.IsOnBattery ? "On Battery" : "Unknown");
-				existing.BatteryIcon = LoadBatteryIcon(service.CurrentData);
+				existing.BatteryIcon = IconHelper.LoadBatteryIcon(service.CurrentData);
 			}
 			else
 			{
@@ -585,29 +496,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
 		Dispatcher.UIThread.Post(() =>
 		{
-			// Set display name from selected UPS config
-			UpsDisplayName = SelectedUps?.DisplayName ?? string.Empty;
-			
-			// Combine manufacturer and model for second line
-			var parts = new List<string>();
-			if (!string.IsNullOrEmpty(data.Manufacturer)) parts.Add(data.Manufacturer);
-			if (!string.IsNullOrEmpty(data.Model)) parts.Add(data.Model);
-			ManfModelInfo = string.Join(" ", parts);
-			
-			UpsSerial = data.Serial;
-			UpsStatus = data.Status;
-			BatteryCharge = data.BatteryCharge;
-			BatteryVoltage = data.BatteryVoltage;
-			BatteryRuntimeMinutes = data.BatteryRuntimeSeconds / 60.0;
-			InputVoltage = data.InputVoltage;
-			OutputVoltage = data.OutputVoltage;
-			InputFrequency = data.InputFrequency;
-			Load = data.Load;
-			OutputPower = data.OutputPower;
-
-			// Update display properties
-			UpdateStatusDisplay(data);
-			UpdateBatteryRuntimeDisplay();
+			// Update UPS card via its ViewModel
+			UpsCard.UpdateFromUpsData(data, SelectedUps?.DisplayName ?? string.Empty);
 
 			// Update sidebar
 			UpdateUpsSidebar();
@@ -615,132 +505,6 @@ public partial class MainWindowViewModel : ViewModelBase
 			_lastUpdateTime = DateTime.Now;
 			UpdateFreshnessIndicator();
 		});
-	}
-
-	private void UpdateStatusDisplay(UpsData data)
-	{
-		if (data.IsOnline)
-		{
-			UpsStatusDisplay = data.IsCharging ? "Online (Charging)" : "Online";
-			StatusBadgeColor = Brushes.Green;
-		}
-		else if (data.IsOnBattery)
-		{
-			UpsStatusDisplay = data.IsLowBattery ? "On Battery (Low!)" : "On Battery";
-			StatusBadgeColor = data.IsLowBattery ? Brushes.Red : Brushes.Orange;
-		}
-		else if (data.IsForcedShutdown)
-		{
-			UpsStatusDisplay = "Forced Shutdown";
-			StatusBadgeColor = Brushes.Red;
-		}
-		else
-		{
-			UpsStatusDisplay = data.Status;
-			StatusBadgeColor = Brushes.Gray;
-		}
-
-		// Update battery icons
-		BatteryIcon = LoadBatteryIcon(data);
-		BatteryStateIcon = LoadBatteryStateIcon(data);
-		HasBatteryStateIcon = BatteryStateIcon != null;
-	}
-
-	private static Avalonia.Media.Imaging.Bitmap? LoadBatteryIcon(UpsData data)
-	{
-		// Calculate icon index using AppIconIndex bit flags
-		int iconIndex = (int)AppIconIndex.Offset;
-
-		// Battery level
-		if (data.BatteryCharge >= 87.5)
-			iconIndex |= (int)AppIconIndex.Battery100;
-		else if (data.BatteryCharge >= 62.5)
-			iconIndex |= (int)AppIconIndex.Battery75;
-		else if (data.BatteryCharge >= 37.5)
-			iconIndex |= (int)AppIconIndex.Battery50;
-		else if (data.BatteryCharge >= 12.5)
-			iconIndex |= (int)AppIconIndex.Battery25;
-		else
-			iconIndex |= (int)AppIconIndex.Battery0;
-
-		// Online/Offline status
-		if (data.IsOnline)
-			iconIndex |= (int)AppIconIndex.OnLine;
-
-		// Check for dark mode
-		var app = Avalonia.Application.Current;
-		if (app?.ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark)
-			iconIndex |= (int)AppIconIndex.WindowsDark;
-
-		try
-		{
-			var uri = new Uri($"avares://WinNUT-Client/Assets/{iconIndex}.ico");
-			return new Avalonia.Media.Imaging.Bitmap(Avalonia.Platform.AssetLoader.Open(uri));
-		}
-		catch
-		{
-			return null;
-		}
-	}
-
-	private static Avalonia.Media.Imaging.Bitmap? LoadBatteryStateIcon(UpsData data)
-	{
-		const string IconCharged = "Battery_Charged";
-		const string IconCharging = "Battery_Charging";
-		const string IconDischarging = "Battery_Discharging";
-		
-		// Use ups.status flags: CHRG = charging, DISCHRG = discharging
-		// Also check battery.charger.status if available (high-end UPS only)
-		string? iconName = null;
-		
-		// First check battery.charger.status if available
-		var chargerStatus = data.ChargerStatus.ToLowerInvariant();
-		if (chargerStatus == "floating" || chargerStatus == "resting")
-			iconName = IconCharged;
-		else if (chargerStatus == "charging")
-			iconName = IconCharging;
-		else if (chargerStatus == "discharging")
-			iconName = IconDischarging;
-		// Fall back to ups.status flags
-		else if (data.IsCharging)
-			iconName = IconCharging;
-		else if (data.IsDischarging || data.IsOnBattery)
-			iconName = IconDischarging;
-		else if (data.IsOnline && data.BatteryCharge >= 95)
-			iconName = IconCharged;
-		else if (data.IsOnline)
-			iconName = IconCharging;
-
-		if (iconName == null)
-			return null;
-
-		try
-		{
-			var uri = new Uri($"avares://WinNUT-Client/Assets/{iconName}.png");
-			return new Avalonia.Media.Imaging.Bitmap(Avalonia.Platform.AssetLoader.Open(uri));
-		}
-		catch
-		{
-			return null;
-		}
-	}
-
-	private void UpdateBatteryRuntimeDisplay()
-	{
-		if (BatteryRuntimeMinutes < 1)
-		{
-			BatteryRuntimeDisplay = $"{BatteryRuntimeMinutes * 60:F0} sec";
-		}
-		else if (BatteryRuntimeMinutes < 60)
-		{
-			BatteryRuntimeDisplay = $"{BatteryRuntimeMinutes:F0} min";
-		}
-		else
-		{
-			var hours = (int)(BatteryRuntimeMinutes / 60);
-			var mins = (int)(BatteryRuntimeMinutes % 60);
-			BatteryRuntimeDisplay = $"{hours}h {mins}m";
-		}
 	}
 
 	private void UpdateFreshnessIndicator()
@@ -849,16 +613,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
 	private void ClearUpsData()
 	{
-		UpsDisplayName = string.Empty;
-		ManfModelInfo = string.Empty;
-		UpsStatus = string.Empty;
-		BatteryCharge = 0;
-		BatteryVoltage = 0;
-		BatteryRuntimeMinutes = 0;
-		InputVoltage = 0;
-		OutputVoltage = 0;
-		InputFrequency = 0;
-		Load = 0;
-		OutputPower = 0;
+		UpsCard.Clear();
 	}
 }
