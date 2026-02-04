@@ -237,17 +237,6 @@
 									<TextBlock Grid.Column="1" Text="{Binding OutputVoltage, StringFormat={}{0:F1}V}" FontWeight="SemiBold" />
 								</Grid>
 								
-								<!-- Frequency -->
-								<Grid ColumnDefinitions="*,Auto">
-									<TextBlock Grid.Column="0" Text="Frequency" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-									<TextBlock Grid.Column="1" Text="{Binding InputFrequency, StringFormat={}{0:F1}Hz}" FontWeight="SemiBold" />
-								</Grid>
-								
-								<!-- Power -->
-								<Grid ColumnDefinitions="*,Auto">
-									<TextBlock Grid.Column="0" Text="Power" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-									<TextBlock Grid.Column="1" Text="{Binding OutputPower, StringFormat={}{0:F0}W}" FontWeight="SemiBold" />
-								</Grid>
 							</StackPanel>
 						</Border>
 					</Grid>
