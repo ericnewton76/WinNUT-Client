@@ -219,6 +219,12 @@
 									<ProgressBar Value="{Binding Load}" Maximum="100" Height="8" CornerRadius="4" />
 								</StackPanel>
 								
+								<!-- Load Watts -->
+								<Grid ColumnDefinitions="*,Auto">
+									<TextBlock Grid.Column="0" Text="Power" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+									<TextBlock Grid.Column="1" Text="{Binding OutputPower, StringFormat={}{0:F0}W}" FontWeight="SemiBold" />
+								</Grid>
+								
 								<!-- Input Voltage -->
 								<Grid ColumnDefinitions="*,Auto">
 									<TextBlock Grid.Column="0" Text="Input" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
