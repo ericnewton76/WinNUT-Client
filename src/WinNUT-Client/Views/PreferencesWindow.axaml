@@ -56,10 +56,10 @@
 
 					<!-- List Buttons -->
 					<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="5" Margin="0,0,0,10">
-						<Button Content="Add" Command="{Binding AddUpsCommand}" Width="70" />
-						<Button Content="Remove" Command="{Binding RemoveUpsCommand}" Width="70" 
+						<Button Content="Add" Command="{Binding AddUpsCommand}"  />
+						<Button Content="Remove" Command="{Binding RemoveUpsCommand}"  
 										IsEnabled="{Binding SelectedUpsDevice, Converter={x:Static ObjectConverters.IsNotNull}}" />
-						<Button Content="Set Primary" Command="{Binding SetPrimaryUpsCommand}" Width="90"
+						<Button Content="Set Primary" Command="{Binding SetPrimaryUpsCommand}" 
 										IsEnabled="{Binding SelectedUpsDevice, Converter={x:Static ObjectConverters.IsNotNull}}" />
 					</StackPanel>
 
@@ -121,8 +121,8 @@
 				</StackPanel>
 			</TabItem>
 
-			<!-- Power Tab -->
-			<TabItem Header="Power">
+			<!-- Shutdown Tab -->
+			<TabItem Header="Shutdown">
 				<StackPanel Margin="10" Spacing="10">
 					<TextBlock Text="Shutdown Conditions" FontWeight="Bold" />
 					<Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto" RowSpacing="10">
