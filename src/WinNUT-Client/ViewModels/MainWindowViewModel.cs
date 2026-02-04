@@ -100,7 +100,7 @@ public partial class MainWindowViewModel : ViewModelBase
 	private IBrush _statusBadgeColor = Brushes.Gray;
 
 	[ObservableProperty]
-	private string _batteryIconPath = "/Assets/1057.ico";  // Default: Battery0 + OnLine
+	private Avalonia.Media.Imaging.Bitmap? _batteryIcon;
 
 	[ObservableProperty]
 	private double _batteryCharge;
@@ -623,10 +623,10 @@ public partial class MainWindowViewModel : ViewModelBase
 		}
 
 		// Update battery icon
-		BatteryIconPath = GetBatteryIconPath(data);
+		BatteryIcon = LoadBatteryIcon(data);
 	}
 
-	private static string GetBatteryIconPath(UpsData data)
+	private static Avalonia.Media.Imaging.Bitmap? LoadBatteryIcon(UpsData data)
 	{
 		// Calculate icon index using AppIconIndex bit flags
 		int iconIndex = (int)AppIconIndex.Offset;
@@ -647,7 +647,15 @@ public partial class MainWindowViewModel : ViewModelBase
 		if (data.IsOnline)
 			iconIndex |= (int)AppIconIndex.OnLine;
 
-		return $"/Assets/{iconIndex}.ico";
+		try
+		{
+			var uri = new Uri($"avares://WinNUT-Client/Assets/{iconIndex}.ico");
+			return new Avalonia.Media.Imaging.Bitmap(Avalonia.Platform.AssetLoader.Open(uri));
+		}
+		catch
+		{
+			return null;
+		}
 	}
 
 	private void UpdateBatteryRuntimeDisplay()
